@@ -36,6 +36,33 @@ The pipeline must support:
 
 Use the Gemini asset pipeline before gameplay expansion.
 
+## Balance design rules
+
+The game must feel intentionally designed and balanced.
+
+Do not tune single values in isolation.
+When changing HP, also consider:
+- player DPS
+- attack frequency
+- pattern duration
+- phase pacing
+- pickup rate
+- stage flow
+
+Bosses must not die too quickly.
+Boss fights should feel like major encounters with multiple phases and distinct pacing.
+
+Enemy waves must feel authored, not random.
+Each stage should teach, escalate, vary pressure, and culminate in a satisfying boss fight.
+
+Prioritize Touhou-like feel through:
+- readable bullets
+- escalating pattern complexity
+- meaningful focus mode
+- useful bombs
+- memorable boss phases
+- fair but threatening pressure
+
 ## Visual standard
 
 Target:
