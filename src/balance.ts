@@ -104,7 +104,7 @@ export const BALANCE = {
 
   // ─── Miniboss ────────────────────────────────────────────────────────────
   miniboss: {
-    hp:            2200,        // -60%
+    hp:            1540,        // -60%, then -30%
     attackTimer:   1.5,         // initial delay before first attack
     score:         3000,
 
@@ -114,7 +114,7 @@ export const BALANCE = {
 
   // ─── Boss ────────────────────────────────────────────────────────────────
   boss: {
-    totalHp:       8000,        // -60%
+    totalHp:       5600,        // -60%, then -30%
 
     /** Phase thresholds as fraction of maxHp remaining */
     phase2at:      0.60,        // enter phase 2 when HP drops to 60% (12000 HP left)
