@@ -23,7 +23,7 @@ export const BALANCE = {
     maxPower:       128,
 
     /** Power per gem collected (was 2, now 1 for slower progression) */
-    powerPerGem:    1,
+    powerPerGem:    2,
 
     /** Power level thresholds: [lvl2, lvl3, lvl4] */
     powerThresholds: [24, 56, 100] as [number, number, number],
@@ -45,37 +45,37 @@ export const BALANCE = {
   // ─── Enemy HP and speed by type ──────────────────────────────────────────
   enemies: {
     fairy: {
-      hp:       24,             // ~0.4s TTK at power 2 — melts fast
+      hp:       18,             // -25%
       speed:    320,
       hoverDur: 5,
       score:    100,
     },
     bat: {
-      hp:       12,             // ~0.2s TTK at power 2 — one-shot fodder
+      hp:       9,              // -25%
       speed:    400,
       hoverDur: 0,
       score:    80,
     },
     soul: {
-      hp:       50,             // ~0.8s TTK at power 2 — noticeable but fair
+      hp:       38,             // -25%
       speed:    240,
       hoverDur: 6,
       score:    200,
     },
     wisp: {
-      hp:       18,             // ~0.3s TTK at power 2 — quick kill
+      hp:       14,             // -25%
       speed:    380,
       hoverDur: 4,
       score:    150,
     },
     phantom: {
-      hp:       70,             // ~1.2s TTK at power 2 — tanky but killable
+      hp:       53,             // -25%
       speed:    180,
       hoverDur: 8,
       score:    250,
     },
     knight: {
-      hp:       90,             // ~1.5s TTK at power 2 — toughest regular
+      hp:       68,             // -25%
       speed:    260,
       hoverDur: 7,
       score:    300,
@@ -104,7 +104,7 @@ export const BALANCE = {
 
   // ─── Miniboss ────────────────────────────────────────────────────────────
   miniboss: {
-    hp:            5500,        // was 1800 → ~30s TTK
+    hp:            2200,        // -60%
     attackTimer:   1.5,         // initial delay before first attack
     score:         3000,
 
@@ -114,7 +114,7 @@ export const BALANCE = {
 
   // ─── Boss ────────────────────────────────────────────────────────────────
   boss: {
-    totalHp:       20000,       // was 5400 → ~85s total fight
+    totalHp:       8000,        // -60%
 
     /** Phase thresholds as fraction of maxHp remaining */
     phase2at:      0.60,        // enter phase 2 when HP drops to 60% (12000 HP left)
