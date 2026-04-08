@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "gemini-assets": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "C:\\modern-danmaku-shooter\\tools\\gemini-assets"
+    }
+  }
+}

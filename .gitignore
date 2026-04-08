@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+*.local
+
+# MCP server build
+tools/gemini-assets/dist/
+tools/gemini-assets/node_modules/
+
+# Generated assets (track source prompts, not raw outputs)
+assets/generated/

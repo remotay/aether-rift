@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 5 npx tsx src/index.ts)",
+      "Bash(npm run:*)",
+      "Bash(timeout 4 node dist/index.js)",
+      "Bash(true echo:*)",
+      "Bash(node -e \"JSON.parse\\(require\\(''''fs''''\\).readFileSync\\(''''/c/modern-danmaku-shooter/.mcp.json'''',''''utf8''''\\)\\); console.log\\(''''JSON valid''''\\)\")",
+      "Bash(node -e \"const c = JSON.parse\\(require\\(''fs''\\).readFileSync\\(process.env.APPDATA+''/Claude/claude_desktop_config.json'',''utf8''\\)\\); console.log\\(''Valid JSON. MCP servers:'', Object.keys\\(c.mcpServers||{}\\).join\\('', ''\\)\\)\")",
+      "Bash(node dist/index.js)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(sort -t. -k1)",
+      "Bash(timeout 4 node \"C:/modern-danmaku-shooter/tools/gemini-assets/dist/index.js\")",
+      "mcp__gemini-assets__generate_styleframe",
+      "mcp__gemini-assets__revise_image",
+      "Bash(node -e \"require\\(''/c/modern-danmaku-shooter/node_modules/phaser/package.json''\\).version |> console.log\")",
+      "Bash(node -e \"console.log\\(require\\(''/c/modern-danmaku-shooter/node_modules/phaser/package.json''\\).version\\)\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 5 bash -c 'while ! curl -s http://localhost:5173 > /dev/null 2>&1; do sleep 0.5; done; echo \"\"Server ready\"\"')",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(curl -v http://localhost:3000)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/remot/AppData/Local/Temp/claude/C--modern-danmaku-shooter/656bc4b6-5e41-4009-b2ca-2ddc159a807f/tasks/**)",
+      "Bash(done)"
+    ]
+  }
+}
