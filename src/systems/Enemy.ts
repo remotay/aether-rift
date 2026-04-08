@@ -3,6 +3,12 @@ import { W, H, DEPTH } from '../constants';
 
 export type EnemyFireFn = (ex: number, ey: number, angle: number, pattern: EnemyPattern) => void;
 
+/** Callback for spawning a laser beam (x, y, angle, width, chargeDur, sustainDur, colour). */
+export type LaserFireFn = (
+  x: number, y: number, angle: number,
+  width: number, chargeDur: number, sustainDur: number, colour: number,
+) => void;
+
 export type EnemyPattern =
   | 'aimed'       // single aimed shot
   | 'aimed3'      // 3-shot tight fan
@@ -14,10 +20,14 @@ export type EnemyPattern =
   | 'laser2'      // 2 slow heavy bullets
   | 'aimed_back'  // 3 shots away from player
   | 'volley'      // 3 quick single shots in sequence
+  | 'laser_aimed' // single laser aimed at player
+  | 'laser_sweep' // laser that sweeps 45 degrees
+  | 'laser_cross' // two perpendicular lasers
+  | 'laser_fan'   // three lasers in 60-degree spread
   | 'none';
 
 export interface EnemyDef {
-  type:      'fairy' | 'soul' | 'wisp' | 'phantom' | 'knight' | 'bat';
+  type:      'fairy' | 'soul' | 'wisp' | 'phantom' | 'knight' | 'bat' | 'drone';
   x:         number;
   y:         number;
   targetX:   number;
@@ -30,7 +40,7 @@ export interface EnemyDef {
   score:     number;
   tint?:     number;
   alpha?:    number;
-  behavior?: 'hover' | 'sweep';
+  behavior?: 'hover' | 'sweep' | 'strafe';
   delay?:    number;   // stagger spawn within a wave (seconds)
 }
 
@@ -87,6 +97,11 @@ const ENEMY_CONFIG: Record<EnemyDef['type'], EnemyTypeConfig> = {
     scale: 0.045,
     anim: { ampX: 3, ampY: 5, ampRot: 8, freqX: 4.0, freqY: 5.0, freqRot: 4.5, phase: 0 },
   },
+  drone: {
+    bodyKey: 'enemy-drone-body', animKey: 'enemy-drone-rotor', animBehind: true,
+    scale: 0.05,
+    anim: { ampX: 2, ampY: 2, ampRot: 360, freqX: 0.5, freqY: 0.5, freqRot: 3.0, phase: 0 },
+  },
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -116,8 +131,9 @@ export class Enemy {
   private readonly def: EnemyDef;
   private readonly scene: Phaser.Scene;
   private flashTimer = 0;
-  private readonly behavior: 'hover' | 'sweep';
+  private readonly behavior: 'hover' | 'sweep' | 'strafe';
   private readonly config: EnemyTypeConfig;
+  private strafeDir: number = 0;
 
   // Animation time
   private animTime = 0;
@@ -182,6 +198,7 @@ export class Enemy {
       phantom: [44, 44],
       knight:  [38, 38],
       bat:     [24, 24],
+      drone:   [30, 30],
     };
     [this.hW, this.hH] = hbMap[def.type];
 
@@ -226,7 +243,7 @@ export class Enemy {
     return [bx, by];
   }
 
-  update(dt: number, playerX: number, playerY: number, fireFn: EnemyFireFn): void {
+  update(dt: number, playerX: number, playerY: number, fireFn: EnemyFireFn, laserFn?: LaserFireFn): void {
     if (!this.alive) return;
 
     this.animTime += dt;
@@ -270,8 +287,7 @@ export class Enemy {
       this.shootTimer -= dt;
       if (this.shootTimer <= 0) {
         this.shootTimer = this.def.shootInt;
-        const angle = Math.atan2(playerY - this.y, playerX - this.x);
-        fireFn(this.x, this.y, angle, this.def.pattern);
+        this.firePattern(playerX, playerY, fireFn, laserFn);
       }
 
       if (this.x < -200 || this.x > W + 200 || this.y < -200 || this.y > H + 200) {
@@ -296,8 +312,7 @@ export class Enemy {
         this.shootTimer -= dt;
         if (this.shootTimer <= 0) {
           this.shootTimer = this.def.shootInt;
-          const angle = Math.atan2(playerY - this.y, playerX - this.x);
-          fireFn(this.x, this.y, angle, this.def.pattern);
+          this.firePattern(playerX, playerY, fireFn, laserFn);
         }
       }
 
@@ -334,14 +349,20 @@ export class Enemy {
         this.y = this.def.targetY + Math.sin(hT * 2.8 + this.phaseOff * 1.3) * this.hoverAmpY;
       }
 
+      // Strafe: slide vertically within bounds
+      if (this.def.behavior === 'strafe') {
+        if (!this.strafeDir) this.strafeDir = Math.random() > 0.5 ? 1 : -1;
+        this.y += this.strafeDir * 120 * dt;
+        if (this.y < 120 || this.y > H - 120) this.strafeDir *= -1;
+      }
+
       const tiltX = this.x - this.def.targetX;
       this.container.angle = Phaser.Math.Linear(this.container.angle, tiltX * 0.08, 0.06);
 
       this.shootTimer -= dt;
       if (this.shootTimer <= 0) {
         this.shootTimer = this.def.shootInt;
-        const angle = Math.atan2(playerY - this.y, playerX - this.x);
-        fireFn(this.x, this.y, angle, this.def.pattern);
+        this.firePattern(playerX, playerY, fireFn, laserFn);
       }
 
       this.hoverTimer -= dt;
@@ -364,6 +385,50 @@ export class Enemy {
 
     // ── Animate the secondary layer ─────────────────────────────────
     this.applyAnim();
+  }
+
+  /** Route pattern to either bullet fireFn or laser laserFn. */
+  private firePattern(
+    px: number, py: number,
+    fireFn: EnemyFireFn, laserFn: LaserFireFn | undefined,
+  ): void {
+    const ex = this.x;
+    const ey = this.y;
+    const pattern = this.def.pattern;
+    const angle = Math.atan2(py - ey, px - ex);
+
+    switch (pattern) {
+      case 'laser_aimed': {
+        // Single laser aimed at player
+        laserFn?.(ex, ey, angle, 12, 1.0, 2.0, 0x00ccaa);
+        break;
+      }
+      case 'laser_sweep': {
+        // Laser that sweeps 45 degrees
+        const baseAngle = angle;
+        laserFn?.(ex, ey, baseAngle - 0.4, 14, 0.8, 2.5, 0x00ccaa);
+        // Fire additional lasers at offset angles after delays
+        // (the sweep effect will be handled by the scene's laser pool)
+        break;
+      }
+      case 'laser_cross': {
+        // Two perpendicular lasers
+        laserFn?.(ex, ey, angle, 12, 1.0, 2.0, 0x00ccaa);
+        laserFn?.(ex, ey, angle + Math.PI / 2, 12, 1.0, 2.0, 0x00ccaa);
+        break;
+      }
+      case 'laser_fan': {
+        // Three lasers in 60-degree spread
+        laserFn?.(ex, ey, angle - 0.52, 10, 0.8, 1.8, 0x00ccaa);
+        laserFn?.(ex, ey, angle, 10, 0.8, 1.8, 0x00ccaa);
+        laserFn?.(ex, ey, angle + 0.52, 10, 0.8, 1.8, 0x00ccaa);
+        break;
+      }
+      default:
+        // Normal bullet pattern — delegate to GameScene
+        fireFn(ex, ey, angle, pattern);
+        break;
+    }
   }
 
   private applyAnim(): void {
@@ -407,6 +472,9 @@ export class EnemyManager {
   private readonly scene: Phaser.Scene;
   private readonly fireFn: EnemyFireFn;
 
+  /** Optional laser-fire callback — set by GameScene when a laser pool is available. */
+  laserFn?: LaserFireFn;
+
   constructor(scene: Phaser.Scene, fireFn: EnemyFireFn) {
     this.scene   = scene;
     this.fireFn  = fireFn;
@@ -426,7 +494,7 @@ export class EnemyManager {
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i];
       if (!e.alive) { this.enemies.splice(i, 1); continue; }
-      e.update(dt, playerX, playerY, this.fireFn);
+      e.update(dt, playerX, playerY, this.fireFn, this.laserFn);
     }
   }
 

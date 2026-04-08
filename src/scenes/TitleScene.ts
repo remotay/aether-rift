@@ -55,8 +55,12 @@ export class TitleScene extends Phaser.Scene {
       duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
     });
 
-    // Subtitle
-    this.add.text(W / 2, H / 2 - 64, '— STAGE I:  THRESHOLD OF ETERNITY —', {
+    // Subtitle — show available stages
+    const s1Cleared = this.registry.get('stage1Cleared') ?? false;
+    const subtitleText = s1Cleared
+      ? '— STAGES:  I  ·  II —'
+      : '— STAGE I:  THRESHOLD OF ETERNITY —';
+    this.add.text(W / 2, H / 2 - 64, subtitleText, {
       fontFamily: FONT,
       fontSize: '26px',
       color: '#bb99ee',
@@ -95,8 +99,14 @@ export class TitleScene extends Phaser.Scene {
     const zKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
     zKey.once('down', () => {
       sfx.uiConfirm();
+      // Clear any carried state from a previous run so Stage 1 starts fresh
+      this.registry.set('carryScore', undefined);
+      this.registry.set('carryLives', undefined);
+      this.registry.set('carryBombs', undefined);
+      this.registry.set('carryPower', undefined);
+      this.registry.set('currentStage', 1);
       this.cameras.main.fadeOut(400, 0, 0, 0);
-      this.time.delayedCall(420, () => this.scene.start('GameScene'));
+      this.time.delayedCall(420, () => this.scene.start('GameScene', { stage: 1 }));
     });
 
     this.cameras.main.fadeIn(600, 0, 0, 0);

@@ -11,6 +11,9 @@ import { BulletPool }       from '../systems/BulletPool';
 import { EnemyManager }     from '../systems/Enemy';
 import type { EnemyDef }    from '../systems/Enemy';
 import { Boss, Miniboss }   from '../systems/Boss';
+import { Boss2, Miniboss2 } from '../systems/Boss2';
+import type { LaserFireFn }  from '../systems/Boss2';
+import { LaserPool }         from '../systems/Laser';
 import { HUD }              from '../ui/HUD';
 import { BossBar }          from '../ui/BossBar';
 import { sfx }              from '../audio/SoundSynth';
@@ -30,10 +33,11 @@ export class GameScene extends Phaser.Scene {
   private pBullets!:   BulletPool;
   private eBullets!:   BulletPool;
   private enemyMgr!:   EnemyManager;
-  private boss:        Boss | null = null;
-  private miniboss:    Miniboss | null = null;
+  private boss:        Boss | Boss2 | null = null;
+  private miniboss:    Miniboss | Miniboss2 | null = null;
   private hud!:        HUD;
   private bossBar!:    BossBar;
+  private laserPool!:  LaserPool;
 
   // Background
   private starLayers: { gfx: Phaser.GameObjects.Graphics; speed: number; stars: { x: number; y: number; sz: number; a: number }[] }[] = [];
@@ -55,11 +59,18 @@ export class GameScene extends Phaser.Scene {
   // Current wave number (1-indexed) — used for bullet speed scaling
   private currentWaveNum = 0;
 
+  // Stage identifier (1 = Stage I, 2 = Stage II, etc.)
+  private stageId = 1;
+
   // P key for pause
   private pKey!: Phaser.Input.Keyboard.Key;
   private escKey!: Phaser.Input.Keyboard.Key;
 
   constructor() { super({ key: 'GameScene' }); }
+
+  init(data?: { stage?: number }): void {
+    this.stageId = data?.stage ?? 1;
+  }
 
   create(): void {
     this.score      = 0;
@@ -87,6 +98,13 @@ export class GameScene extends Phaser.Scene {
     this.enemyMgr = new EnemyManager(this, (ex, ey, angle, pattern) => {
       this.fireEnemyPattern(ex, ey, angle, pattern);
     });
+
+    // Laser pool — used by Stage 2 enemies, miniboss, and boss
+    this.laserPool = new LaserPool(this);
+    this.enemyMgr.laserFn = (x, y, angle, w, telDur, actDur, tint) => {
+      this.laserPool.fireLaser(x, y, angle, w, telDur, actDur, tint);
+    };
+
     // Player bullet pool
     this.pBullets = new BulletPool(this, 'bul-player', 256, DEPTH.PBULLET);
 
@@ -96,6 +114,18 @@ export class GameScene extends Phaser.Scene {
       (x, y, power, focused) => this.firePlayer(x, y, power, focused),
       () => this.doBomb(),
     );
+
+    // Apply carried state from previous stage (e.g. Stage 1 → Stage 2 continuation)
+    if (this.stageId >= 2) {
+      const carryScore = this.registry.get('carryScore') as number | undefined;
+      const carryLives = this.registry.get('carryLives') as number | undefined;
+      const carryBombs = this.registry.get('carryBombs') as number | undefined;
+      const carryPower = this.registry.get('carryPower') as number | undefined;
+      if (carryScore !== undefined) this.score        = carryScore;
+      if (carryLives !== undefined) this.player.lives = carryLives;
+      if (carryBombs !== undefined) this.player.bombs = carryBombs;
+      if (carryPower !== undefined) this.player.power = carryPower;
+    }
 
     // HUD / BossBar
     this.hud     = new HUD(this);
@@ -113,9 +143,14 @@ export class GameScene extends Phaser.Scene {
 
     // Fade-in intro
     this.cameras.main.fadeIn(500, 0, 0, 0);
+    const stageLabels: Record<number, string> = {
+      1: 'STAGE I: THRESHOLD OF ETERNITY',
+      2: 'STAGE II: CLOCKWORK ABYSS',
+    };
+    const stageLabel = stageLabels[this.stageId] ?? `STAGE  ${this.stageId}`;
     this.time.delayedCall(600, () => {
       this.phase = 'waves';
-      this.hud.showMessage('STAGE  I', 1800, 0xe8f4ff, 60);
+      this.hud.showMessage(stageLabel, 1800, 0xe8f4ff, 60);
     });
   }
 
@@ -164,6 +199,7 @@ export class GameScene extends Phaser.Scene {
     this.eBullets.update(dt, -160, W + 160, -160, H + 160);
     if (this.focusPool)    this.focusPool.update(dt, -160, W + 160, -160, H + 160);
     if (this.bossEBullets) this.bossEBullets.update(dt, -160, W + 160, -160, H + 160);
+    this.laserPool.update(dt);
     this.enemyMgr.update(dt, this.player.x, this.player.y);
 
     if (this.miniboss?.alive) this.miniboss.update(dt, this.player.x, this.player.y);
@@ -199,11 +235,13 @@ export class GameScene extends Phaser.Scene {
 
   private buildBackground(): void {
     // Solid base — prevents any checkerboard gaps
-    this.add.rectangle(W / 2, H / 2, W, H, 0x06010e).setDepth(DEPTH.BG_FAR - 1);
+    const baseTint = this.stageId === 2 ? 0x020a0e : 0x06010e;
+    this.add.rectangle(W / 2, H / 2, W, H, baseTint).setDepth(DEPTH.BG_FAR - 1);
 
     // Static atmospheric sky backdrop
-    if (this.textures.exists('bg-sky')) {
-      this.add.image(W / 2, H / 2, 'bg-sky')
+    const skyKey = this.stageId === 2 ? 'bg-sky-s2' : 'bg-sky';
+    if (this.textures.exists(skyKey)) {
+      this.add.image(W / 2, H / 2, skyKey)
         .setDisplaySize(W, H)
         .setDepth(DEPTH.BG_FAR);
     }
@@ -215,26 +253,30 @@ export class GameScene extends Phaser.Scene {
       if (this.textures.exists(k)) this.textures.remove(k);
     });
 
-    const mtC = this.buildMountainLayer();
-    this.textures.addCanvas('_bg_mt', mtC);
-    this.bgMountains = this.add
-      .tileSprite(0, H, W, mtC.height, '_bg_mt')
-      .setOrigin(0, 1)
-      .setDepth(DEPTH.BG_MID - 1);
+    if (this.stageId === 2) {
+      this.buildStage2Parallax();
+    } else {
+      const mtC = this.buildMountainLayer();
+      this.textures.addCanvas('_bg_mt', mtC);
+      this.bgMountains = this.add
+        .tileSprite(0, H, W, mtC.height, '_bg_mt')
+        .setOrigin(0, 1)
+        .setDepth(DEPTH.BG_MID - 1);
 
-    const bdC = this.buildBuildingLayer();
-    this.textures.addCanvas('_bg_bd', bdC);
-    this.bgBuildings = this.add
-      .tileSprite(0, H, W, bdC.height, '_bg_bd')
-      .setOrigin(0, 1)
-      .setDepth(DEPTH.BG_MID);
+      const bdC = this.buildBuildingLayer();
+      this.textures.addCanvas('_bg_bd', bdC);
+      this.bgBuildings = this.add
+        .tileSprite(0, H, W, bdC.height, '_bg_bd')
+        .setOrigin(0, 1)
+        .setDepth(DEPTH.BG_MID);
 
-    const nrC = this.buildNearLayer();
-    this.textures.addCanvas('_bg_nr', nrC);
-    this.bgNear = this.add
-      .tileSprite(0, H, W, nrC.height, '_bg_nr')
-      .setOrigin(0, 1)
-      .setDepth(DEPTH.BG_NEAR - 1);
+      const nrC = this.buildNearLayer();
+      this.textures.addCanvas('_bg_nr', nrC);
+      this.bgNear = this.add
+        .tileSprite(0, H, W, nrC.height, '_bg_nr')
+        .setOrigin(0, 1)
+        .setDepth(DEPTH.BG_NEAR - 1);
+    }
 
     // Parallax star layers — scrolled procedurally each frame
     const rng = new Phaser.Math.RandomDataGenerator(['stars-game']);
@@ -330,6 +372,11 @@ export class GameScene extends Phaser.Scene {
   // ─── WAVE TIMELINE ────────────────────────────────────────────────────────
 
   private buildTimeline(): void {
+    if (this.stageId === 2) {
+      this.buildStage2Timeline();
+      return;
+    }
+
     const wave = (t: number, waveNum: number, fn: () => void) => {
       this.waveEvents.push([t, () => {
         this.currentWaveNum = waveNum;
@@ -562,6 +609,210 @@ export class GameScene extends Phaser.Scene {
              behavior: 'sweep', delay };
   }
 
+  private droneDef(x: number, y: number, tx: number, ty: number, pattern: EnemyDef['pattern'], shootInt: number, delay = 0): EnemyDef {
+    const c = BALANCE.stage2.enemies.drone;
+    return { type: 'drone', x, y, targetX: tx, targetY: ty, hp: c.hp, speed: c.speed, hoverDur: c.hoverDur, pattern, shootInt, score: c.score,
+             behavior: 'strafe', delay };
+  }
+
+  // ─── STAGE 2 WAVE TIMELINE ────────────────────────────────────────────────
+
+  private buildStage2Timeline(): void {
+    const wave = (t: number, waveNum: number, fn: () => void) => {
+      this.waveEvents.push([t, () => {
+        this.currentWaveNum = waveNum;
+        fn();
+      }]);
+    };
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  20 waves over ~104 seconds — denser aimed-shot pressure + laser patterns
+    //
+    //  ACT 1: TUTORIAL (waves 1-3)      — drones + fairies, teach new movement
+    //  ACT 2: INTRODUCTION (waves 4-7)  — first lasers, mixed types
+    //  ACT 3: COMBINATION (waves 8-13)  — heavy/light alternation, laser combos
+    //  ACT 4: CRESCENDO (waves 14-20)   — peak intensity, all types
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // ── ACT 1: TUTORIAL ─────────────────────────────────────────────────
+    // Wave 1 (t=2s): 3 drones (aimed), teach new enemy
+    wave(2, 1, () => this.enemyMgr.spawnWave([
+      this.droneDef(W + 80,  260, 1380, 280, 'aimed', 1.6, 0),
+      this.droneDef(W + 80,  540, 1400, 540, 'aimed', 1.6, 0.3),
+      this.droneDef(W + 80,  820, 1380, 800, 'aimed', 1.6, 0.6),
+    ]));
+
+    // Wave 2 (t=8s): 4 fairies (aimed3), familiar but faster
+    wave(8, 2, () => this.enemyMgr.spawnWave([
+      this.fairyDef(W + 80,  200, 1460, 200, 'aimed3', 1.8, 0),
+      this.fairyDef(W + 80,  420, 1480, 420, 'aimed3', 1.8, 0.2),
+      this.fairyDef(W + 80,  640, 1460, 640, 'aimed3', 1.8, 0.4),
+      this.fairyDef(W + 80,  860, 1480, 860, 'aimed3', 1.8, 0.6),
+    ]));
+
+    // Wave 3 (t=14s): 3 bats + 2 drones, mixed movement
+    wave(14, 3, () => this.enemyMgr.spawnWave([
+      this.batDef(W + 80,    100, -200,  800, 'aimed',  1.0, 0),
+      this.batDef(W + 80,    400, -200,  600, 'aimed',  1.0, 0.3),
+      this.batDef(W + 80,    700, -200,  300, 'aimed_back', 1.2, 0.6),
+      this.droneDef(W + 80,  300, 1400, 300, 'aimed',  1.6, 0.9),
+      this.droneDef(W + 80,  760, 1400, 760, 'aimed',  1.6, 1.1),
+    ]));
+
+    // ── ACT 2: INTRODUCTION ─────────────────────────────────────────────
+    // Wave 4 (t=22s): 2 drones + 1 knight with laser_aimed — FIRST LASER
+    wave(22, 4, () => this.enemyMgr.spawnWave([
+      this.droneDef(W + 80,   300, 1400, 300, 'aimed', 1.4, 0),
+      this.droneDef(W + 80,   780, 1400, 780, 'aimed', 1.4, 0.25),
+      this.knightDef(W + 80,  540, 1500, 540, 'laser_aimed', 3.0, 0.6),
+    ]));
+
+    // Wave 5 (t=30s): 3 wisps (ring8) + 2 drones
+    wave(30, 5, () => this.enemyMgr.spawnWave([
+      this.wispDef(W + 80,   220, 1500, 240, 'ring8', 2.6, 0),
+      this.wispDef(W + 80,   540, 1520, 540, 'ring8', 2.6, 0.3),
+      this.wispDef(W + 80,   860, 1500, 840, 'ring8', 2.6, 0.6),
+      this.droneDef(W + 80,  380, 1380, 380, 'aimed', 1.4, 0.8),
+      this.droneDef(W + 80,  700, 1380, 700, 'aimed', 1.4, 1.0),
+    ]));
+
+    // Wave 6 (t=36s): 2 phantoms (ring12) + 1 drone with laser_sweep
+    wave(36, 6, () => this.enemyMgr.spawnWave([
+      this.phantomDef(W + 80, 300, 1500, 320, 'ring12', 3.2, 0),
+      this.phantomDef(W + 80, 780, 1500, 760, 'ring12', 3.2, 0.5),
+      this.droneDef(W + 80,   540, 1460, 540, 'laser_sweep', 3.0, 1.0),
+    ]));
+
+    // Wave 7 (t=42s): 2 souls + 2 fairies (aimed5)
+    wave(42, 7, () => this.enemyMgr.spawnWave([
+      this.soulDef(W + 80,   260, 1480, 280, 'ring8', 2.6, 0),
+      this.soulDef(W + 80,   820, 1480, 800, 'ring8', 2.6, 0.4),
+      this.fairyDef(W + 80,  440, 1400, 440, 'aimed5', 2.0, 0.7),
+      this.fairyDef(W + 80,  640, 1400, 640, 'aimed5', 2.0, 0.9),
+    ]));
+
+    // ── ACT 3: COMBINATION ──────────────────────────────────────────────
+    // Wave 8 (t=50s): 5 drones in formation (aimed), "drone wall"
+    wave(50, 8, () => this.enemyMgr.spawnWave([
+      this.droneDef(W + 80,  160, 1360, 160, 'aimed', 1.4, 0),
+      this.droneDef(W + 80,  340, 1380, 340, 'aimed', 1.4, 0.12),
+      this.droneDef(W + 80,  520, 1360, 520, 'aimed', 1.4, 0.24),
+      this.droneDef(W + 80,  700, 1380, 700, 'aimed', 1.4, 0.36),
+      this.droneDef(W + 80,  880, 1360, 880, 'aimed', 1.4, 0.48),
+    ]));
+
+    // Wave 9 (t=55s): 2 knights + phantom + laser drone (HEAVY)
+    wave(55, 9, () => this.enemyMgr.spawnWave([
+      this.knightDef(W + 80,  280, 1500, 280, 'aimed5', 2.4, 0),
+      this.knightDef(W + 80,  800, 1500, 800, 'aimed5', 2.4, 0.4),
+      this.phantomDef(W + 80, 540, 1540, 540, 'ring12', 3.0, 0.7),
+      this.droneDef(W + 80,   440, 1420, 440, 'laser_aimed', 2.8, 1.0),
+    ]));
+
+    // Wave 10 (t=60s): 4 bats + 2 fairies (LIGHTER)
+    wave(60, 10, () => this.enemyMgr.spawnWave([
+      this.batDef(W + 80,   120, -200,  800, 'aimed', 0.9, 0),
+      this.batDef(W + 80,   380, -200,  600, 'aimed', 0.9, 0.2),
+      this.batDef(W + 80,   640, -200,  400, 'aimed_back', 1.1, 0.4),
+      this.batDef(W + 80,   900, -200,  200, 'aimed_back', 1.1, 0.6),
+      this.fairyDef(W + 80, 540, 1380, 540, 'aimed3', 1.8, 0.8),
+      this.fairyDef(W + 80, 300, 1380, 300, 'aimed3', 1.8, 1.0),
+    ]));
+
+    // Wave 11 (t=65s): 3 wisps + 2 drones + laser knight (HEAVY)
+    wave(65, 11, () => this.enemyMgr.spawnWave([
+      this.wispDef(W + 80,   200, 1500, 220, 'ring8', 2.4, 0),
+      this.wispDef(W + 80,   540, 1520, 540, 'ring8', 2.4, 0.3),
+      this.wispDef(W + 80,   880, 1500, 860, 'ring8', 2.4, 0.6),
+      this.droneDef(W + 80,  380, 1400, 380, 'aimed', 1.4, 0.8),
+      this.droneDef(W + 80,  700, 1400, 700, 'aimed', 1.4, 1.0),
+      this.knightDef(W + 80, 540, 1500, 540, 'laser_aimed', 3.0, 1.2),
+    ]));
+
+    // Wave 12 (t=70s): 2 souls + 3 bats + fairy (overlapping)
+    wave(70, 12, () => this.enemyMgr.spawnWave([
+      this.soulDef(W + 80,   280, 1480, 300, 'ring8', 2.4, 0),
+      this.soulDef(W + 80,   800, 1480, 780, 'ring8', 2.4, 0.35),
+      this.batDef(W + 80,     80, -200, 500, 'aimed', 0.9, 0.6),
+      this.batDef(W + 80,    500, -200, 300, 'aimed', 0.9, 0.8),
+      this.batDef(W + 80,    920, -200, 700, 'aimed_back', 1.0, 1.0),
+      this.fairyDef(W + 80,  540, 1380, 540, 'aimed3', 1.6, 1.2),
+    ]));
+
+    // Wave 13 (t=75s): 2 drones(laser_cross) + phantom (dense ring + crossed lasers)
+    wave(75, 13, () => this.enemyMgr.spawnWave([
+      this.droneDef(W + 80,   340, 1440, 340, 'laser_cross', 3.2, 0),
+      this.droneDef(W + 80,   740, 1440, 740, 'laser_cross', 3.2, 0.5),
+      this.phantomDef(W + 80, 540, 1520, 540, 'ring12', 2.8, 0.9),
+    ]));
+
+    // ── ACT 4: CRESCENDO ────────────────────────────────────────────────
+    // Wave 14 (t=80s): 5 bats crossing (tempo shift)
+    wave(80, 14, () => this.enemyMgr.spawnWave([
+      this.batDef(W + 80,   80, -200,  900, 'aimed',      0.8, 0),
+      this.batDef(W + 80,  260, -200,  700, 'aimed',      0.8, 0.12),
+      this.batDef(W + 80,  440, -200,  540, 'aimed',      0.8, 0.24),
+      this.batDef(W + 80,  700, -200,  300, 'aimed_back', 0.9, 0.36),
+      this.batDef(W + 80,  900, -200,  100, 'aimed_back', 0.9, 0.48),
+    ]));
+
+    // Wave 15 (t=84s): 3 souls + 3 fairies (peak density)
+    wave(84, 15, () => this.enemyMgr.spawnWave([
+      this.soulDef(W + 80,   200, 1500, 220, 'ring8', 2.2, 0),
+      this.soulDef(W + 80,   540, 1520, 540, 'ring12', 2.2, 0.3),
+      this.soulDef(W + 80,   880, 1500, 860, 'ring8', 2.2, 0.6),
+      this.fairyDef(W + 80,  360, 1400, 360, 'aimed3', 1.6, 0.8),
+      this.fairyDef(W + 80,  540, 1400, 540, 'aimed3', 1.6, 1.0),
+      this.fairyDef(W + 80,  720, 1400, 720, 'aimed3', 1.6, 1.2),
+    ]));
+
+    // Wave 16 (t=88s): 4 fairies (LIGHTER breather)
+    wave(88, 16, () => this.enemyMgr.spawnWave([
+      this.fairyDef(W + 80,  200, 1460, 260, 'aimed', 1.8, 0),
+      this.fairyDef(W + 80,  460, 1480, 460, 'aimed', 1.8, 0.2),
+      this.fairyDef(W + 80,  620, 1480, 620, 'aimed', 1.8, 0.4),
+      this.fairyDef(W + 80,  880, 1460, 820, 'aimed', 1.8, 0.6),
+    ]));
+
+    // Wave 17 (t=92s): 2 knights + 2 wisps + laser drone
+    wave(92, 17, () => this.enemyMgr.spawnWave([
+      this.knightDef(W + 80, 300, 1480, 300, 'aimed5', 2.4, 0),
+      this.knightDef(W + 80, 780, 1480, 780, 'aimed5', 2.4, 0.3),
+      this.wispDef(W + 80,   440, 1520, 440, 'ring8', 2.2, 0.6),
+      this.wispDef(W + 80,   640, 1520, 640, 'ring8', 2.2, 0.8),
+      this.droneDef(W + 80,  540, 1440, 540, 'laser_aimed', 2.6, 1.0),
+    ]));
+
+    // Wave 18 (t=96s): 2 phantoms + 2 drones + 2 fairies
+    wave(96, 18, () => this.enemyMgr.spawnWave([
+      this.phantomDef(W + 80, 280, 1500, 300, 'ring12', 2.8, 0),
+      this.phantomDef(W + 80, 800, 1500, 780, 'ring12', 2.8, 0.5),
+      this.droneDef(W + 80,   440, 1420, 440, 'aimed', 1.4, 0.8),
+      this.droneDef(W + 80,   640, 1420, 640, 'aimed', 1.4, 1.0),
+      this.fairyDef(W + 80,   200, 1380, 200, 'aimed3', 1.6, 1.2),
+      this.fairyDef(W + 80,   880, 1380, 880, 'aimed3', 1.6, 1.4),
+    ]));
+
+    // Wave 19 (t=100s): 3 drones with laser_fan (triple laser challenge)
+    wave(100, 19, () => this.enemyMgr.spawnWave([
+      this.droneDef(W + 80,  260, 1460, 260, 'laser_fan', 3.0, 0),
+      this.droneDef(W + 80,  540, 1480, 540, 'laser_fan', 3.0, 0.4),
+      this.droneDef(W + 80,  820, 1460, 820, 'laser_fan', 3.0, 0.8),
+    ]));
+
+    // Wave 20 (t=104s): Grand all-types wave (7+ enemies)
+    wave(104, 20, () => this.enemyMgr.spawnWave([
+      this.soulDef(W + 80,    180, 1520, 200, 'ring8',  2.4, 0),
+      this.knightDef(W + 80,  540, 1540, 540, 'aimed5', 2.4, 0.25),
+      this.soulDef(W + 80,    900, 1520, 880, 'ring8',  2.4, 0.5),
+      this.wispDef(W + 80,    360, 1480, 360, 'ring8',  2.2, 0.75),
+      this.wispDef(W + 80,    720, 1480, 720, 'ring8',  2.2, 1.0),
+      this.droneDef(W + 80,   440, 1420, 440, 'laser_aimed', 2.6, 1.2),
+      this.fairyDef(W + 80,   260, 1400, 260, 'aimed3', 1.6, 1.4),
+      this.fairyDef(W + 80,   820, 1400, 820, 'aimed3', 1.6, 1.6),
+    ]));
+  }
+
   private tickWaves(): void {
     while (this.nextWave < this.waveEvents.length && this.stageTimer >= this.waveEvents[this.nextWave][0]) {
       this.waveEvents[this.nextWave][1]();
@@ -573,21 +824,35 @@ export class GameScene extends Phaser.Scene {
 
   private enterMiniboss(): void {
     this.phase = 'miniboss';
-    this.hud.showMessage('⚠  ELITE  ⚠', 2000, 0x55ddff, 56);
+    const minibossLabel = this.stageId === 2 ? '\u26A0  WARDEN  \u26A0' : '\u26A0  ELITE  \u26A0';
+    this.hud.showMessage(minibossLabel, 2000, 0x55ddff, 56);
     sfx.bossWarning();
 
-    this.miniboss = new Miniboss(this, (x, y, vx, vy, sc = 1, tint = 0x55ddff) => {
+    const fireFn = (x: number, y: number, vx: number, vy: number, sc = 1, tint = 0x55ddff) => {
       this.eBullets.fire(x, y, vx, vy, sc, sc, tint);
-    });
-    this.bossBar.show('SHRINE GUARDIAN');
+    };
 
+    if (this.stageId === 2) {
+      const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint) => {
+        this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint);
+      };
+      this.miniboss = new Miniboss2(this, fireFn, laserFireFn);
+      this.bossBar.show('WARDEN AUTOMATON');
+    } else {
+      this.miniboss = new Miniboss(this, fireFn);
+      this.bossBar.show('SHRINE GUARDIAN');
+    }
+
+    const minibossScore = this.stageId === 2 ? BALANCE.stage2.miniboss.score : BALANCE.miniboss.score;
     this.miniboss.onDie = () => {
       this.bossBar.hide();
       sfx.explosion();
       this.burst(this.miniboss!.x, this.miniboss!.y, 24, 0x44ffee);
       this.spawnPickups(this.miniboss!.x, this.miniboss!.y, BALANCE.pickups.minibossDrops, 'power');
-      this.addScore(BALANCE.miniboss.score);
-      this.hud.showMessage('ELITE DEFEATED', 2000, 0x44ffee, 48);
+      this.addScore(minibossScore);
+      const defeatMsg = this.stageId === 2 ? 'WARDEN DEFEATED' : 'ELITE DEFEATED';
+      this.hud.showMessage(defeatMsg, 2000, 0x44ffee, 48);
+      this.laserPool.releaseAll();
 
       // Interlude before boss
       this.phase      = 'interlude';
@@ -597,10 +862,17 @@ export class GameScene extends Phaser.Scene {
       // More enemy waves during interlude
       this.time.delayedCall(1500, () => {
         if (this.phase !== 'interlude') return;
-        this.enemyMgr.spawnWave([
-          this.fairyDef(W + 80, 320, 1360, 320, 'aimed',  1.8),
-          this.fairyDef(W + 80, 760, 1360, 760, 'aimed',  1.8),
-        ]);
+        if (this.stageId === 2) {
+          this.enemyMgr.spawnWave([
+            this.droneDef(W + 80, 320, 1380, 320, 'aimed', 1.6),
+            this.droneDef(W + 80, 760, 1380, 760, 'aimed', 1.6),
+          ]);
+        } else {
+          this.enemyMgr.spawnWave([
+            this.fairyDef(W + 80, 320, 1360, 320, 'aimed',  1.8),
+            this.fairyDef(W + 80, 760, 1360, 760, 'aimed',  1.8),
+          ]);
+        }
       });
     };
   }
@@ -611,7 +883,7 @@ export class GameScene extends Phaser.Scene {
   private dialogueLineIndex = 0;
   private dialogueZKey!: Phaser.Input.Keyboard.Key;
 
-  private static readonly DIALOGUE_LINES: Array<{
+  private static readonly DIALOGUE_LINES_S1: Array<{
     speaker: 'player' | 'boss';
     name: string;
     text: string;
@@ -624,6 +896,21 @@ export class GameScene extends Phaser.Scene {
     { speaker: 'boss',   name: 'Aetheria', text: 'Your courage is admirable, little spark.\nBut courage alone cannot survive my storm!' },
   ];
 
+  private static readonly DIALOGUE_LINES_S2: Array<{
+    speaker: 'player' | 'boss';
+    name: string;
+    text: string;
+  }> = [
+    { speaker: 'player', name: 'Kira',     text: 'The rift grows deeper. This machinery...\nit\'s alive.' },
+    { speaker: 'boss',   name: 'Vortex',   text: 'You dare descend into my domain, little spark?' },
+    { speaker: 'player', name: 'Kira',     text: 'I\'ll shut down every gear in this abyss\nif I have to.' },
+    { speaker: 'boss',   name: 'Vortex',   text: 'Then be consumed by the engine of eternity!' },
+  ];
+
+  private getDialogueLines() {
+    return this.stageId === 2 ? GameScene.DIALOGUE_LINES_S2 : GameScene.DIALOGUE_LINES_S1;
+  }
+
   private enterDialogue(): void {
     this.phase             = 'dialogue';
     this.dialogueLineIndex = 0;
@@ -631,6 +918,7 @@ export class GameScene extends Phaser.Scene {
     this.player.frozen     = true;   // suppress all player input during dialogue
     this.enemyMgr.clearAll();
     this.eBullets.releaseAll();
+    this.laserPool.releaseAll();
 
     // Dim the background with a semi-transparent panel
     const dimRect = this.add.rectangle(W / 2, H / 2, W, H, 0x000011, 0.55)
@@ -675,7 +963,8 @@ export class GameScene extends Phaser.Scene {
     const bossFrameBorder = this.add.rectangle(PORT_R_X, PORT_Y, PORT_SIZE + 4, PORT_SIZE + 4, 0, 0)
       .setDepth(DEPTH.OVERLAY - 1)
       .setStrokeStyle(2, 0xff66cc, 1);
-    const bossPortrait = this.add.image(PORT_R_X, PORT_Y, 'portrait-boss')
+    const bossPortraitKey = this.stageId === 2 ? 'portrait-boss2' : 'portrait-boss';
+    const bossPortrait = this.add.image(PORT_R_X, PORT_Y, bossPortraitKey)
       .setDisplaySize(PORT_SIZE, PORT_SIZE)
       .setDepth(DEPTH.OVERLAY);
     this.dialogueGroup.push(bossFrameBg, bossFrameBorder, bossPortrait);
@@ -724,12 +1013,13 @@ export class GameScene extends Phaser.Scene {
     this.dialogueGroup.push(playerDim, bossDim);
 
     // Show first line
+    const dialogueLines = this.getDialogueLines();
     const showLine = (idx: number) => {
-      if (idx >= GameScene.DIALOGUE_LINES.length) {
+      if (idx >= dialogueLines.length) {
         this.endDialogue();
         return;
       }
-      const line = GameScene.DIALOGUE_LINES[idx];
+      const line = dialogueLines[idx];
       const isPlayer = line.speaker === 'player';
 
       // Update name label colour by speaker
@@ -799,6 +1089,7 @@ export class GameScene extends Phaser.Scene {
     this.phaseTimer = 2.8;
     this.enemyMgr.clearAll();
     this.eBullets.releaseAll();
+    this.laserPool.releaseAll();
 
     sfx.bossWarning();
 
@@ -818,7 +1109,8 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Warning flash banner — larger and more impactful
-    const banner = this.add.text(W / 2, H / 2, '!! BOSS APPROACHING !!', {
+    const warningText = this.stageId === 2 ? '\u26A1 RIFT ENGINE \u26A1' : '!! BOSS APPROACHING !!';
+    const banner = this.add.text(W / 2, H / 2, warningText, {
       fontFamily: FONT,
       fontSize: '72px',
       color: '#ff2244',
@@ -846,35 +1138,55 @@ export class GameScene extends Phaser.Scene {
       this.bossEBullets = new BulletPool(this, 'bul-round-md', 400, DEPTH.EBULLET);
     }
 
-    this.boss = new Boss(this, (x, y, vx, vy, sc = 1, tint = 0xff88cc) => {
+    const fireFn = (x: number, y: number, vx: number, vy: number, sc = 1, tint = 0xff88cc) => {
       this.bossEBullets.fire(x, y, vx, vy, sc, sc, tint);
-    });
+    };
 
-    this.bossBar.show('AETHERIA,  BUTTERFLY DEITY');
+    if (this.stageId === 2) {
+      const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint) => {
+        this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint);
+      };
+      this.boss = new Boss2(this, fireFn, laserFireFn);
+      this.bossBar.show('VORTEX,  THE RIFT ENGINE');
+    } else {
+      this.boss = new Boss(this, fireFn);
+      this.bossBar.show('AETHERIA,  BUTTERFLY DEITY');
+    }
 
-    this.boss.onPhaseChange = (phase) => {
+    const phaseColor = this.stageId === 2 ? 0x00ccaa : 0xff88cc;
+
+    this.boss.onPhaseChange = (phase: number) => {
       sfx.phaseChange();
       this.eBullets.releaseAll();
       this.bossEBullets?.releaseAll();
+      this.laserPool.releaseAll();
       this.cameras.main.shake(300, 0.012);
       const msgs: Record<number, string> = { 2: 'PHASE II', 3: 'FINAL PHASE' };
-      this.hud.showMessage(msgs[phase] ?? '', 1800, 0xff88cc, 60);
+      this.hud.showMessage(msgs[phase] ?? '', 1800, phaseColor, 60);
     };
 
+    const bossScore = this.stageId === 2 ? BALANCE.stage2.boss.score : BALANCE.boss.score;
     this.boss.onDie = () => {
       this.bossBar.hide();
       this.eBullets.releaseAll();
       this.bossEBullets?.releaseAll();
+      this.laserPool.releaseAll();
       this.cameras.main.shake(500, 0.018);
       sfx.explosion();
-      this.burst(this.boss!.x, this.boss!.y, 40, 0xff88cc);
-      this.addScore(BALANCE.boss.score);
+      this.burst(this.boss!.x, this.boss!.y, 40, phaseColor);
+      this.addScore(bossScore);
 
       this.time.delayedCall(1800, () => {
         this.phase = 'clear';
         this.cameras.main.fadeOut(600, 0, 0, 0);
         this.time.delayedCall(650, () => {
           this.game.registry.set('hiScore', this.hiScore);
+          // Save player state for potential stage continuation
+          this.registry.set('currentStage', this.stageId);
+          this.registry.set('carryScore', this.score);
+          this.registry.set('carryLives', this.player.lives);
+          this.registry.set('carryBombs', this.player.bombs);
+          this.registry.set('carryPower', this.player.power);
           this.scene.start('ClearScene', { score: this.score, hiScore: this.hiScore });
         });
       });
@@ -1004,6 +1316,7 @@ export class GameScene extends Phaser.Scene {
   private doBomb(): void {
     sfx.bomb();
     this.eBullets.releaseAll();
+    this.laserPool.releaseAll();
 
     // Flash
     const flash = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff, 0.6)
@@ -1041,7 +1354,7 @@ export class GameScene extends Phaser.Scene {
   // ─── ENEMY BULLET FIRE ────────────────────────────────────────────────────
 
   private fireEnemyPattern(ex: number, ey: number, baseAngle: number, pattern: string): void {
-    const spd = getWaveBulletSpeed(this.currentWaveNum);
+    const spd = getWaveBulletSpeed(this.currentWaveNum, this.stageId);
     switch (pattern) {
       case 'aimed':
         this.eBullets.fire(ex, ey, Math.cos(baseAngle) * spd, Math.sin(baseAngle) * spd);
@@ -1144,6 +1457,13 @@ export class GameScene extends Phaser.Scene {
     };
     checkBulletPool(this.eBullets);
     if (this.bossEBullets) checkBulletPool(this.bossEBullets);
+
+    // ── Laser beams → player ────────────────────────────────────────────────
+    if (!this.player.dead && !this.player.invincible && !this.player.bombActive) {
+      if (this.laserPool.checkPlayerHit(px, py, BALANCE.player.hitboxR)) {
+        this.onPlayerHit();
+      }
+    }
 
     // ── Enemy bodies → player (contact damage) ─────────────────────────────
     if (!this.player.dead && !this.player.invincible && !this.player.bombActive) {
@@ -1294,6 +1614,7 @@ export class GameScene extends Phaser.Scene {
       // Clear enemy bullets to give breathing room.
       this.eBullets.releaseAll();
       if (this.bossEBullets) this.bossEBullets.releaseAll();
+      this.laserPool.releaseAll();
     }
   }
 
@@ -1590,5 +1911,262 @@ export class GameScene extends Phaser.Scene {
     ctx.fillRect(cx - gw / 2 - pw,    ground - gh,       gw + pw * 2, kh);
     // Shimaki (second crossbeam below)
     ctx.fillRect(cx - gw / 2,         ground - gh + kh * 1.8, gw, kh * 0.55);
+  }
+
+  // ─── STAGE 2 PARALLAX ──────────────────────────────────────────────────────
+  // Industrial/clockwork theme: teal & orange palette, gears, pipes, crystals.
+
+  private buildStage2Parallax(): void {
+    // Far layer — crystal spires & gear silhouettes
+    const farC = this.buildS2FarLayer();
+    this.textures.addCanvas('_bg_mt', farC);
+    this.bgMountains = this.add
+      .tileSprite(0, H, W, farC.height, '_bg_mt')
+      .setOrigin(0, 1)
+      .setDepth(DEPTH.BG_MID - 1);
+
+    // Mid layer — industrial ruins with pipes
+    const midC = this.buildS2MidLayer();
+    this.textures.addCanvas('_bg_bd', midC);
+    this.bgBuildings = this.add
+      .tileSprite(0, H, W, midC.height, '_bg_bd')
+      .setOrigin(0, 1)
+      .setDepth(DEPTH.BG_MID);
+
+    // Near layer — rotating cog shapes and conduit lines
+    const nearC = this.buildS2NearLayer();
+    this.textures.addCanvas('_bg_nr', nearC);
+    this.bgNear = this.add
+      .tileSprite(0, H, W, nearC.height, '_bg_nr')
+      .setOrigin(0, 1)
+      .setDepth(DEPTH.BG_NEAR - 1);
+  }
+
+  /** Far layer: crystal spires rising from a jagged ridgeline, gear outlines. */
+  private buildS2FarLayer(): HTMLCanvasElement {
+    const TW = 2048, TH = 440;
+    const cv = document.createElement('canvas');
+    cv.width = TW; cv.height = TH;
+    const ctx = cv.getContext('2d')!;
+    const rng = new Phaser.Math.RandomDataGenerator(['s2-far']);
+
+    // Ridgeline profile using sine waves
+    const waves: [number, number, number][] = [
+      [2,  TH * 0.30, rng.frac() * Math.PI * 2],
+      [6,  TH * 0.16, rng.frac() * Math.PI * 2],
+      [11, TH * 0.07, rng.frac() * Math.PI * 2],
+    ];
+    const profile: number[] = [];
+    for (let x = 0; x < TW; x++) {
+      let elev = 0;
+      for (const [freq, amp, ph] of waves) {
+        elev += Math.max(0, Math.sin(x / TW * Math.PI * 2 * freq + ph)) * amp;
+      }
+      profile.push(TH - Phaser.Math.Clamp(elev, 0, TH * 0.85));
+    }
+
+    // Fill with dark teal gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, TH);
+    grad.addColorStop(0,    'rgba(0,20,18,0)');
+    grad.addColorStop(0.25, 'rgba(0,20,18,0.75)');
+    grad.addColorStop(1,    '#021210');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.moveTo(0, TH);
+    for (let x = 0; x < TW; x++) ctx.lineTo(x, profile[x]);
+    ctx.lineTo(TW, TH); ctx.closePath(); ctx.fill();
+
+    // Crystal spires
+    let sx = rng.between(100, 300);
+    while (sx < TW - 80) {
+      const sh = rng.between(60, 180);
+      const sw = rng.between(12, 30);
+      const baseY = profile[Math.min(sx, TW - 1)];
+      ctx.fillStyle = 'rgba(0,80,70,0.5)';
+      ctx.beginPath();
+      ctx.moveTo(sx - sw / 2, baseY);
+      ctx.lineTo(sx, baseY - sh);
+      ctx.lineTo(sx + sw / 2, baseY);
+      ctx.closePath();
+      ctx.fill();
+      // Inner highlight
+      ctx.fillStyle = 'rgba(0,200,170,0.15)';
+      ctx.beginPath();
+      ctx.moveTo(sx - sw / 4, baseY);
+      ctx.lineTo(sx, baseY - sh * 0.7);
+      ctx.lineTo(sx + sw / 6, baseY);
+      ctx.closePath();
+      ctx.fill();
+      sx += rng.between(200, 500);
+    }
+
+    // Gear silhouettes (simple circles with cutouts)
+    let gx = rng.between(150, 400);
+    while (gx < TW - 60) {
+      const gr = rng.between(20, 55);
+      const gy = profile[Math.min(gx, TW - 1)] - rng.between(10, 40);
+      ctx.strokeStyle = 'rgba(0,100,80,0.35)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(gx, gy, gr, 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner circle
+      ctx.beginPath();
+      ctx.arc(gx, gy, gr * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+      // Teeth stubs
+      const teeth = rng.between(6, 10);
+      for (let t = 0; t < teeth; t++) {
+        const a = (t / teeth) * Math.PI * 2;
+        const tx2 = gx + Math.cos(a) * (gr + 6);
+        const ty = gy + Math.sin(a) * (gr + 6);
+        ctx.fillStyle = 'rgba(0,100,80,0.3)';
+        ctx.fillRect(tx2 - 3, ty - 3, 6, 6);
+      }
+      gx += rng.between(300, 600);
+    }
+
+    return cv;
+  }
+
+  /** Mid layer: industrial ruins with pipes and conduits. */
+  private buildS2MidLayer(): HTMLCanvasElement {
+    const TW = 2048, TH = 280;
+    const cv = document.createElement('canvas');
+    cv.width = TW; cv.height = TH;
+    const ctx = cv.getContext('2d')!;
+    const rng = new Phaser.Math.RandomDataGenerator(['s2-mid']);
+
+    const profile = new Float32Array(TW).fill(TH);
+
+    // Industrial structures — blocky ruins
+    let bx = 0;
+    while (bx < TW) {
+      const bw = rng.between(50, 130);
+      const bh = rng.between(40, 170);
+      const by = TH - bh;
+      for (let i = bx; i < Math.min(bx + bw, TW); i++) profile[i] = by;
+
+      // Pipe stack on top
+      if (rng.frac() < 0.5 && bw > 60) {
+        const pipes = rng.between(2, 5);
+        for (let p = 0; p < pipes; p++) {
+          const py = by - 8 - p * 12;
+          const pw = bw * rng.realInRange(0.5, 0.9);
+          const px = bx + (bw - pw) / 2;
+          for (let i = Math.floor(px); i < Math.min(Math.floor(px + pw), TW); i++) {
+            profile[i] = Math.min(profile[i], py);
+          }
+        }
+      }
+      // Tall chimney / smokestack
+      if (rng.frac() < 0.35) {
+        const cw = rng.between(10, 22);
+        const ch = rng.between(30, 80);
+        const cx = bx + bw / 2;
+        for (let i = Math.floor(cx - cw / 2); i < Math.min(Math.floor(cx + cw / 2), TW); i++) {
+          if (i >= 0) profile[i] = Math.min(profile[i], by - ch);
+        }
+      }
+      bx += bw + rng.between(12, 60);
+    }
+
+    // Clear edges for seamless tile
+    for (let i = 0; i < 20; i++) profile[i] = TH;
+    for (let i = TW - 20; i < TW; i++) profile[i] = TH;
+
+    // Fill with dark industrial colour
+    ctx.fillStyle = '#040d0b';
+    ctx.beginPath(); ctx.moveTo(0, TH);
+    for (let i = 0; i < TW; i++) ctx.lineTo(i, profile[i]);
+    ctx.lineTo(TW, TH); ctx.closePath(); ctx.fill();
+
+    // Horizontal pipe lines across some ruins
+    for (let p = 0; p < 6; p++) {
+      const py = rng.between(60, TH - 30);
+      const pLen = rng.between(200, 600);
+      const pStart = rng.between(0, TW - pLen);
+      ctx.strokeStyle = 'rgba(0,80,60,0.3)';
+      ctx.lineWidth = rng.between(2, 5);
+      ctx.beginPath();
+      ctx.moveTo(pStart, py);
+      ctx.lineTo(pStart + pLen, py);
+      ctx.stroke();
+    }
+
+    return cv;
+  }
+
+  /** Near layer: cog shapes and conduit patterns. */
+  private buildS2NearLayer(): HTMLCanvasElement {
+    const TW = 2048, TH = 210;
+    const cv = document.createElement('canvas');
+    cv.width = TW; cv.height = TH;
+    const ctx = cv.getContext('2d')!;
+    const rng = new Phaser.Math.RandomDataGenerator(['s2-near']);
+
+    // Ground strip
+    ctx.fillStyle = '#020a08';
+    ctx.fillRect(0, TH - 44, TW, 44);
+
+    // Cog shapes along the ground
+    let cx = rng.between(80, 250);
+    while (cx < TW - 80) {
+      const cogR = rng.between(24, 70);
+      const cy = TH - 44 - cogR + rng.between(-10, 10);
+      const teeth = rng.between(8, 16);
+      const toothH = cogR * 0.25;
+
+      // Outer gear
+      ctx.strokeStyle = 'rgba(0,60,50,0.45)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cogR, 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner hub
+      ctx.beginPath();
+      ctx.arc(cx, cy, cogR * 0.35, 0, Math.PI * 2);
+      ctx.stroke();
+      // Teeth
+      ctx.fillStyle = 'rgba(0,60,50,0.3)';
+      for (let t = 0; t < teeth; t++) {
+        const a = (t / teeth) * Math.PI * 2;
+        const tw = Math.PI / teeth * 0.6;
+        ctx.beginPath();
+        ctx.arc(cx, cy, cogR + toothH, a - tw, a + tw);
+        ctx.arc(cx, cy, cogR, a + tw, a - tw, true);
+        ctx.fill();
+      }
+
+      cx += rng.between(180, 450);
+    }
+
+    // Conduit lines running along the ground
+    for (let c = 0; c < 4; c++) {
+      const ly = TH - 44 + rng.between(4, 36);
+      ctx.strokeStyle = 'rgba(255,100,0,0.12)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, ly);
+      ctx.lineTo(TW, ly);
+      ctx.stroke();
+    }
+
+    // Vertical conduit risers
+    let vx = rng.between(100, 300);
+    while (vx < TW - 50) {
+      const vh = rng.between(40, 120);
+      ctx.strokeStyle = 'rgba(0,80,60,0.25)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(vx, TH - 44);
+      ctx.lineTo(vx, TH - 44 - vh);
+      ctx.stroke();
+      // Small node at top
+      ctx.fillStyle = 'rgba(0,200,170,0.15)';
+      ctx.fillRect(vx - 4, TH - 44 - vh - 4, 8, 8);
+      vx += rng.between(300, 600);
+    }
+
+    return cv;
   }
 }

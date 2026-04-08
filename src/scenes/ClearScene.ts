@@ -2,6 +2,14 @@ import Phaser from 'phaser';
 import { W, H, DEPTH, FONT } from '../constants';
 import { sfx } from '../audio/SoundSynth';
 
+/** Maximum stage number currently in the game. */
+const FINAL_STAGE = 2;
+
+const STAGE_SUBTITLES: Record<number, string> = {
+  1: '— THRESHOLD OF ETERNITY CONQUERED —',
+  2: '— AETHER RIFT SEALED —',
+};
+
 export class ClearScene extends Phaser.Scene {
   constructor() { super({ key: 'ClearScene' }); }
 
@@ -13,6 +21,8 @@ export class ClearScene extends Phaser.Scene {
   create(): void {
     const score   = this.registry.get('clear_score')   as number;
     const hiScore = this.registry.get('clear_hiScore') as number;
+    const stageId = (this.registry.get('currentStage') as number | undefined) ?? 1;
+    const canContinue = stageId < FINAL_STAGE;
 
     this.cameras.main.fadeIn(600, 0, 0, 0);
 
@@ -26,7 +36,9 @@ export class ClearScene extends Phaser.Scene {
     sfx.stageClear();
 
     // Stage clear banner
-    const banner = this.add.text(W / 2, H / 2 - 220, 'STAGE CLEAR', {
+    const stageLabels: Record<number, string> = { 1: 'STAGE I  CLEAR', 2: 'STAGE II  CLEAR' };
+    const bannerText = stageLabels[stageId] ?? 'STAGE CLEAR';
+    const banner = this.add.text(W / 2, H / 2 - 220, bannerText, {
       fontFamily: FONT,
       fontSize: '100px',
       color: '#ffee44',
@@ -36,16 +48,19 @@ export class ClearScene extends Phaser.Scene {
 
     this.tweens.add({ targets: banner, alpha: 1, duration: 600, ease: 'Power2' });
 
-    this.add.text(W / 2, H / 2 - 100, '— THRESHOLD OF ETERNITY CONQUERED —', {
-      fontFamily: FONT,
-      fontSize: '24px',
-      color: '#cc99ff',
-      stroke: '#000',
-      strokeThickness: 6,
-    }).setOrigin(0.5).setDepth(DEPTH.OVERLAY);
+    const subtitle = STAGE_SUBTITLES[stageId] ?? '';
+    if (subtitle) {
+      this.add.text(W / 2, H / 2 - 100, subtitle, {
+        fontFamily: FONT,
+        fontSize: '24px',
+        color: '#cc99ff',
+        stroke: '#000',
+        strokeThickness: 6,
+      }).setOrigin(0.5).setDepth(DEPTH.OVERLAY);
+    }
 
     // Score display
-    this.add.text(W / 2, H / 2 + 20, `FINAL SCORE`, {
+    this.add.text(W / 2, H / 2 + 20, canContinue ? 'SCORE' : 'FINAL SCORE', {
       fontFamily: FONT,
       fontSize: '28px',
       color: '#8899aa',
@@ -71,20 +86,79 @@ export class ClearScene extends Phaser.Scene {
       strokeThickness: 6,
     }).setOrigin(0.5).setDepth(DEPTH.OVERLAY);
 
-    // Prompt
-    const prompt = this.add.text(W / 2, H / 2 + 260, 'PRESS  Z  TO RETURN TO TITLE', {
-      fontFamily: FONT,
-      fontSize: '32px',
-      color: '#aaccff',
-      stroke: '#000',
-      strokeThickness: 6,
-    }).setOrigin(0.5).setDepth(DEPTH.OVERLAY);
+    // ── Action prompts ─────────────────────────────────────────────────────
+    if (canContinue) {
+      // Primary: continue to next stage
+      const nextStageLabels: Record<number, string> = { 2: 'STAGE II' };
+      const nextLabel = nextStageLabels[stageId + 1] ?? `STAGE ${stageId + 1}`;
+      const promptContinue = this.add.text(W / 2, H / 2 + 248, `PRESS  Z  TO CONTINUE TO ${nextLabel}`, {
+        fontFamily: FONT,
+        fontSize: '32px',
+        color: '#aaccff',
+        stroke: '#000',
+        strokeThickness: 6,
+      }).setOrigin(0.5).setDepth(DEPTH.OVERLAY);
 
-    this.tweens.add({
-      targets: prompt,
-      alpha: { from: 1, to: 0.2 },
-      duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
-    });
+      this.tweens.add({
+        targets: promptContinue,
+        alpha: { from: 1, to: 0.2 },
+        duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      });
+
+      // Secondary: return to title
+      this.add.text(W / 2, H / 2 + 304, 'PRESS  X  TO RETURN TO TITLE', {
+        fontFamily: FONT,
+        fontSize: '22px',
+        color: '#667788',
+        stroke: '#000',
+        strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(DEPTH.OVERLAY);
+
+      // Input
+      this.time.delayedCall(800, () => {
+        const kb = this.input.keyboard!;
+
+        kb.addKey(Phaser.Input.Keyboard.KeyCodes.Z).once('down', () => {
+          sfx.uiConfirm();
+          // Mark stage 1 as cleared so title scene can reflect it
+          this.registry.set('stage1Cleared', true);
+          this.cameras.main.fadeOut(400, 0, 0, 0);
+          this.time.delayedCall(420, () => {
+            this.scene.start('GameScene', { stage: stageId + 1 });
+          });
+        });
+
+        kb.addKey(Phaser.Input.Keyboard.KeyCodes.X).once('down', () => {
+          sfx.uiCancel();
+          this.registry.set('stage1Cleared', true);
+          this.cameras.main.fadeOut(400, 0, 0, 0);
+          this.time.delayedCall(420, () => this.scene.start('TitleScene'));
+        });
+      });
+    } else {
+      // Final stage cleared — only option is return to title
+      const prompt = this.add.text(W / 2, H / 2 + 260, 'PRESS  Z  TO RETURN TO TITLE', {
+        fontFamily: FONT,
+        fontSize: '32px',
+        color: '#aaccff',
+        stroke: '#000',
+        strokeThickness: 6,
+      }).setOrigin(0.5).setDepth(DEPTH.OVERLAY);
+
+      this.tweens.add({
+        targets: prompt,
+        alpha: { from: 1, to: 0.2 },
+        duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      });
+
+      this.time.delayedCall(800, () => {
+        this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z).once('down', () => {
+          sfx.uiConfirm();
+          this.cameras.main.fadeOut(400, 0, 0, 0);
+          this.time.delayedCall(420, () => this.scene.start('TitleScene'));
+        });
+      });
+    }
 
     // Particle celebration
     const particles = this.add.particles(W / 2, H / 2 - 160, 'particle', {
@@ -99,13 +173,5 @@ export class ClearScene extends Phaser.Scene {
     }).setDepth(DEPTH.FX);
 
     this.time.delayedCall(3000, () => particles.stop());
-
-    this.time.delayedCall(800, () => {
-      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z).once('down', () => {
-        sfx.uiConfirm();
-        this.cameras.main.fadeOut(400, 0, 0, 0);
-        this.time.delayedCall(420, () => this.scene.start('TitleScene'));
-      });
-    });
   }
 }

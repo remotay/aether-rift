@@ -30,8 +30,8 @@ export const BALANCE = {
 
     /** Damage formula: base + powerLevel * perLevel */
     damage: {
-      base:     2,              // was 4
-      perLevel: 2,              // was 3 → gives 4/6/8/10 instead of 7/10/13/16
+      base:     2.3,            // +15% → gives 4.6/6.9/9.2/11.5
+      perLevel: 2.3,            // +15% → DPS at pwr2: 69, pwr3: 92, pwr4: 115
     },
 
     /** Bomb damage by target type */
@@ -168,11 +168,72 @@ export const BALANCE = {
   // ─── Pickup rates ────────────────────────────────────────────────────────
   pickups: {
     /** Chance to spawn a power gem on enemy kill */
-    powerDropRate:   0.35,
+    powerDropRate:   0.385,     // +10% from 0.35
     /** Number of power gems from miniboss kill */
     minibossDrops:   6,
     /** Number of power gems from boss kill */
     bossDrops:       8,
+  },
+
+  // ─── Stage 2: Clockwork Abyss ──────────────────────────────────────────
+  stage2: {
+    enemies: {
+      drone: {
+        hp:       12,
+        speed:    350,
+        hoverDur: 5,
+        score:    120,
+      },
+    },
+
+    bulletSpeed: {
+      early:  280,
+      mid:    360,
+      late:   430,
+      base:   360,
+    },
+
+    miniboss: {
+      hp:              3200,
+      attackTimer:     2.0,
+      score:           4000,
+      bulletSpeedMult: 0.90,
+      phase2at:        0.40,
+      phase2speedMult: 1.20,
+    },
+
+    boss: {
+      totalHp:              9600,
+      phase2at:             0.65,
+      phase3at:             0.28,
+      phase1speed:          360,
+      phase2speed:          420,
+      phase3speed:          500,
+      phase1telegraph:      0.90,
+      phase2telegraph:      0.50,
+      phase3telegraph:      0.28,
+      phase1pause:          1.6,
+      phase2pause:          0.9,
+      phase3pause:          0.40,
+      phase1idle:           0.6,
+      phase2idle:           0.2,
+      phase3idle:           0.08,
+      phaseTransitionPause: 3.0,
+      score:                25000,
+      homeX:                1500,
+      homeY:                540,
+    },
+
+    laser: {
+      thinWidth:       12,
+      wideWidth:       28,
+      telegraphAlpha:  0.4,
+      activeAlpha:     0.95,
+      defaultTelegraph: 1.0,
+      defaultActive:    2.0,
+      fadeoutDur:       0.3,
+      maxSimultaneous:  8,
+    },
   },
 
 } as const;
@@ -180,10 +241,11 @@ export const BALANCE = {
 // ─── Derived helpers ──────────────────────────────────────────────────────
 
 /** Get bullet speed for a given wave number (1-indexed) */
-export function getWaveBulletSpeed(waveNum: number): number {
-  if (waveNum <= 3)  return BALANCE.bulletSpeed.early;
-  if (waveNum <= 8)  return BALANCE.bulletSpeed.mid;
-  return BALANCE.bulletSpeed.late;
+export function getWaveBulletSpeed(waveNum: number, stage = 1): number {
+  const speeds = stage === 2 ? BALANCE.stage2.bulletSpeed : BALANCE.bulletSpeed;
+  if (waveNum <= 3)  return speeds.early;
+  if (waveNum <= 8)  return speeds.mid;
+  return speeds.late;
 }
 
 /** Player damage at a given power level (1-4) */

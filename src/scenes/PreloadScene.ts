@@ -34,6 +34,23 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('portrait-player',  'assets/portraits/player_portrait.png');
     this.load.image('portrait-boss',    'assets/portraits/boss_portrait.png');
 
+    // ── Stage 2 assets ──────────────────────────────────────────────────────
+    // Stage 2 background
+    this.load.image('bg-sky-s2',        'assets/backgrounds/bg-sky-s2.png');
+    // Stage 2 drone enemy (co-aligned pair)
+    this.load.image('enemy-drone-body',  'assets/sprites/enemy_drone_body.png');
+    this.load.image('enemy-drone-rotor', 'assets/sprites/enemy_drone_rotor.png');
+    // Stage 2 miniboss (3 layers)
+    this.load.image('miniboss2-body',    'assets/sprites/miniboss2_body.png');
+    this.load.image('miniboss2-shield',  'assets/sprites/miniboss2_shield.png');
+    this.load.image('miniboss2-lance',   'assets/sprites/miniboss2_lance.png');
+    // Stage 2 boss (2 layers)
+    this.load.image('boss2-body',        'assets/sprites/boss2_body.png');
+    this.load.image('boss2-gears',       'assets/sprites/boss2_gears.png');
+    // Stage 2 portraits
+    this.load.image('portrait-miniboss2', 'assets/portraits/miniboss2_portrait.png');
+    this.load.image('portrait-boss2',     'assets/portraits/boss2_portrait.png');
+
     // Loading bar
     const bw = 800; const bh = 32;
     const bx = W / 2 - bw / 2; const by = H / 2 + 60;
@@ -70,8 +87,24 @@ export class PreloadScene extends Phaser.Scene {
     this.processSprite('portrait-boss',   { skipPass2: true });
     // Pickups: skip Gemini images, use clean procedural versions generated below
 
+    // ── Stage 2 assets ──────────────────────────────────────────────────────
+    // Drone enemy pair
+    this.processCoAlignedParts(['enemy-drone-body', 'enemy-drone-rotor']);
+    // Miniboss2 layers
+    this.chromaKey('miniboss2-body');
+    this.chromaKey('miniboss2-shield');
+    this.chromaKey('miniboss2-lance');
+    // Boss2 layers
+    this.chromaKey('boss2-body');
+    this.chromaKey('boss2-gears');
+    // Stage 2 portraits
+    this.processSprite('portrait-miniboss2', { skipPass2: true });
+    this.processSprite('portrait-boss2',     { skipPass2: true });
+
     // Resize bg-sky to a power-of-two canvas for scrolling
-    this.resizeBgSky();
+    this.resizeBgSky('bg-sky');
+    // Stage 2 background
+    this.resizeBgSky('bg-sky-s2');
 
     // Procedural textures
     this.generateTextures();
@@ -419,21 +452,21 @@ export class PreloadScene extends Phaser.Scene {
 
   // ─── Background resize ────────────────────────────────────────────────────
 
-  private resizeBgSky(): void {
-    if (!this.textures.exists('bg-sky')) {
-      this.buildBgFallback();
+  private resizeBgSky(key: string): void {
+    if (!this.textures.exists(key)) {
+      if (key === 'bg-sky') this.buildBgFallback();
       return;
     }
 
-    const src = this.textures.get('bg-sky').getSourceImage() as HTMLImageElement;
+    const src = this.textures.get(key).getSourceImage() as HTMLImageElement;
     // Make a 2048×1024 power-of-two version (good for TileSprite in WebGL)
     const canvas  = document.createElement('canvas');
     canvas.width  = 2048;
     canvas.height = 1024;
     const ctx = canvas.getContext('2d')!;
     ctx.drawImage(src, 0, 0, 2048, 1024);
-    this.textures.remove('bg-sky');
-    this.textures.addCanvas('bg-sky', canvas);
+    this.textures.remove(key);
+    this.textures.addCanvas(key, canvas);
   }
 
   private buildBgFallback(): void {
