@@ -689,6 +689,7 @@ export class Miniboss {
   readonly hW = 50;
   readonly hH = 66;
 
+  private phase: 1 | 2 = 1;
   private atkTimer: number;
   private atkIndex  = 0;
   private flashTimer = 0;
@@ -774,8 +775,11 @@ export class Miniboss {
   }
 
   private doAttack(px: number, py: number): void {
-    const mbSpd = BALANCE.bulletSpeed.base * BALANCE.miniboss.bulletSpeedMult;
-    const patterns = [
+    const spdMult = this.phase === 2 ? BALANCE.miniboss.phase2speedMult : 1.0;
+    const mbSpd = BALANCE.bulletSpeed.base * BALANCE.miniboss.bulletSpeedMult * spdMult;
+
+    // Phase 1: 4 attacks — learnable, builds familiarity
+    const phase1 = [
       () => {
         // Aimed 3-shot fan
         const base = Math.atan2(py - this.y, px - this.x);
@@ -783,7 +787,7 @@ export class Miniboss {
           const a = base + i * 0.3;
           this.fire(this.x, this.y, Math.cos(a) * mbSpd, Math.sin(a) * mbSpd, 1, 0x55ddff);
         }
-        this.atkTimer = 0.8;
+        this.atkTimer = 0.9;
       },
       () => {
         // 8-shot ring
@@ -791,7 +795,7 @@ export class Miniboss {
           const a = (i / 8) * Math.PI * 2;
           this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.9, Math.sin(a) * mbSpd * 0.9, 1, 0x44ffee);
         }
-        this.atkTimer = 1.5;
+        this.atkTimer = 1.4;
       },
       () => {
         // 5-shot wide aimed fan
@@ -800,7 +804,7 @@ export class Miniboss {
           const a = base + i * 0.22;
           this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.05, Math.sin(a) * mbSpd * 1.05, 1, 0x66eeff);
         }
-        this.atkTimer = 1.0;
+        this.atkTimer = 1.1;
       },
       () => {
         // 12-shot ring + aimed shot — pressure combo
@@ -813,6 +817,84 @@ export class Miniboss {
         this.atkTimer = 1.3;
       },
     ];
+
+    // Phase 2: 6 attacks — faster, denser, adds spiral + double ring
+    const phase2 = [
+      () => {
+        // Fast aimed 5-shot
+        const base = Math.atan2(py - this.y, px - this.x);
+        for (let i = -2; i <= 2; i++) {
+          const a = base + i * 0.25;
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd, Math.sin(a) * mbSpd, 1, 0x55ddff);
+        }
+        this.atkTimer = 0.7;
+      },
+      () => {
+        // Double 10-ring (offset)
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10) * Math.PI * 2;
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.85, Math.sin(a) * mbSpd * 0.85, 1, 0x44ffee);
+        }
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10) * Math.PI * 2 + Math.PI / 10;
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.7, Math.sin(a) * mbSpd * 0.7, 0.8, 0x33ddcc);
+        }
+        this.atkTimer = 1.2;
+      },
+      () => {
+        // Spiral stream — twin spirals
+        let t = 0;
+        const shoot = () => {
+          if (!this.alive) return;
+          const a = t * 0.45;
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.9, Math.sin(a) * mbSpd * 0.9, 1, 0x66eeff);
+          this.fire(this.x, this.y, Math.cos(a + Math.PI) * mbSpd * 0.9, Math.sin(a + Math.PI) * mbSpd * 0.9, 1, 0x44ccdd);
+          t++;
+          if (t < 16) this.scene.time.delayedCall(70, shoot);
+        };
+        shoot();
+        this.atkTimer = 1.5;
+      },
+      () => {
+        // Aimed burst + ring — overlapping pressure
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2;
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.75, Math.sin(a) * mbSpd * 0.75, 0.9, 0x55ccff);
+        }
+        const base = Math.atan2(py - this.y, px - this.x);
+        for (let j = -1; j <= 1; j++) {
+          const a = base + j * 0.2;
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.1, Math.sin(a) * mbSpd * 1.1, 1.2, 0x88eeff);
+        }
+        this.atkTimer = 1.0;
+      },
+      () => {
+        // Rapid fan volley — 3 quick bursts
+        let burst = 0;
+        const shoot = () => {
+          if (!this.alive) return;
+          const base = Math.atan2(py - this.y, px - this.x);
+          for (let i = -2; i <= 2; i++) {
+            const a = base + i * 0.18;
+            this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.05, Math.sin(a) * mbSpd * 1.05, 1, 0x77eeff);
+          }
+          burst++;
+          if (burst < 3) this.scene.time.delayedCall(300, shoot);
+        };
+        shoot();
+        this.atkTimer = 1.3;
+      },
+      () => {
+        // 16-shot dense ring — signature pressure
+        for (let i = 0; i < 16; i++) {
+          const a = (i / 16) * Math.PI * 2;
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.95, Math.sin(a) * mbSpd * 0.95, 1.1, 0x44ffee);
+        }
+        this.atkTimer = 1.1;
+      },
+    ];
+
+    const patterns = this.phase === 2 ? phase2 : phase1;
     patterns[this.atkIndex % patterns.length]();
     this.atkIndex++;
   }
@@ -822,7 +904,36 @@ export class Miniboss {
     this.hp -= dmg;
     for (const l of this.allLayers) l.setTint(0xffffff);
     this.flashTimer = 0.06;
+
+    // Phase transition at threshold
+    if (this.phase === 1 && this.hp <= this.maxHp * BALANCE.miniboss.phase2at) {
+      this.enterPhase2();
+    }
+
     if (this.hp <= 0) this.die();
+  }
+
+  private enterPhase2(): void {
+    this.phase = 2;
+    this.atkIndex = 0;
+
+    // Visual flash + shockwave
+    shockwave(this.scene, this.x, this.y, 0x55ddff, 200);
+    for (const l of this.allLayers) l.setTint(0x55ddff);
+    this.scene.time.delayedCall(400, () => {
+      if (this.alive) for (const l of this.allLayers) l.clearTint();
+    });
+
+    // Scale pulse
+    this.scene.tweens.add({
+      targets: this.container,
+      scaleX: -0.18, scaleY: 0.18,
+      duration: 120, yoyo: true, repeat: 2,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Brief attack pause for transition
+    this.atkTimer = 1.5;
   }
 
   private die(): void {

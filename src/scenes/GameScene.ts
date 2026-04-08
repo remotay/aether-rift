@@ -338,13 +338,19 @@ export class GameScene extends Phaser.Scene {
     };
 
     // ══════════════════════════════════════════════════════════════════════
-    //  18 waves over ~80 seconds, then miniboss triggers on all-clear
-    //  Waves 1-3:   Tutorial (fairies only, slow bullets, wide spacing)
-    //  Waves 4-8:   Introduce new types one at a time
-    //  Waves 9-12:  Combine types
-    //  Waves 13-15: Mix + escalate
-    //  Waves 16-18: Pre-miniboss crescendo
+    //  18 waves over ~90 seconds, then miniboss triggers on all-clear
+    //
+    //  ACT 1: TUTORIAL (waves 1-3)     — fairies + bats, slow bullets
+    //  ACT 2: INTRODUCTION (waves 4-7) — one new enemy type per wave
+    //  ACT 3: COMBINATION (waves 8-12) — mix types, alternate pressure
+    //  ACT 4: CRESCENDO (waves 13-18)  — rapid escalation, all types
+    //
+    //  Breathing room at act boundaries (7-8s gaps)
+    //  Lighter "relief" waves between heavy ones in Acts 3-4
     // ══════════════════════════════════════════════════════════════════════
+
+    // ── ACT 1: TUTORIAL ─────────────────────────────────────────────────
+    // Teach movement, shooting, and basic dodge patterns. Slow bullets.
 
     // Wave 1 (t=2s): "Welcome" — 3 fairies, aimed singles, slow bullets.
     // Teach: enemies come from right, shoot at you.
@@ -371,42 +377,44 @@ export class GameScene extends Phaser.Scene {
       this.batDef(W + 80,  450, -200,  400, 'aimed_back', 1.4, 0.7),
     ]));
 
-    // Wave 4 (t=20s): "Ring introduction" — 2 fairies + 1 wisp with ring8.
+    // ── ACT 2: INTRODUCTION ─────────────────────────────────────────────
+    // One new enemy type per wave, escorted by fairies. Mid-speed bullets.
+
+    // Wave 4 (t=22s): "Ring introduction" — 2 fairies + 1 wisp with ring8.
     // Teach: circular patterns have gaps between bullets.
-    wave(20, 4, () => this.enemyMgr.spawnWave([
+    wave(22, 4, () => this.enemyMgr.spawnWave([
       this.fairyDef(W + 80, 300, 1420, 300, 'spread5', 2.2, 0),
       this.fairyDef(W + 80, 760, 1440, 760, 'spread5', 2.2, 0.2),
       this.wispDef(W + 80,  540, 1540, 540, 'ring8',   2.8, 0.5),
     ]));
 
-    // Wave 5 (t=26s): "Diamond approach" — 4 fairies in diamond.
-    // Teach: spatial awareness, enemies fill different screen zones.
-    wave(26, 5, () => this.enemyMgr.spawnWave([
-      this.fairyDef(W + 80, 200, 1500, 260, 'aimed',  1.8, 0),
-      this.fairyDef(W + 80, 540, 1550, 400, 'aimed',  1.8, 0.2),
-      this.fairyDef(W + 80, 540, 1550, 680, 'aimed',  1.8, 0.4),
-      this.fairyDef(W + 80, 880, 1500, 820, 'aimed',  1.8, 0.6),
-    ]));
-
-    // Wave 6 (t=31s): "First souls" — 2 sturdy soul casters + ring8.
+    // Wave 5 (t=28s): "First souls" — 2 sturdy soul casters + ring8.
     // Teach: some enemies take sustained fire to kill.
-    wave(31, 6, () => this.enemyMgr.spawnWave([
+    wave(28, 5, () => this.enemyMgr.spawnWave([
       this.soulDef(W + 80,  250, 1460, 280, 'ring8',  2.8, 0),
       this.soulDef(W + 80,  830, 1460, 800, 'ring8',  2.8, 0.4),
     ]));
 
-    // Wave 7 (t=36s): "Bats + aimed fairies" — speed vs accuracy.
-    // Teach: prioritizing fast targets while dodging.
-    wave(36, 7, () => this.enemyMgr.spawnWave([
-      this.batDef(W + 80,  150, -200,  450, 'aimed',      1.0, 0),
-      this.batDef(W + 80,  400, -200,  250, 'aimed',      1.0, 0.25),
-      this.batDef(W + 80,  700, -200,  700, 'aimed_back', 1.2, 0.5),
-      this.fairyDef(W + 80, 540, 1400, 540, 'aimed3',     1.8, 0.7),
+    // Wave 6 (t=34s): "First knights" — 2 heavy armoured elites.
+    // Teach: tanky enemies require sustained focus.
+    wave(34, 6, () => this.enemyMgr.spawnWave([
+      this.knightDef(W + 80, 340, 1480, 340, 'aimed5', 2.8, 0),
+      this.knightDef(W + 80, 740, 1480, 740, 'aimed5', 2.8, 0.5),
     ]));
 
-    // Wave 8 (t=41s): "Fairy wall" — 5 fairies cascading, aimed3.
-    // Teach: managing many simultaneous bullet sources.
-    wave(41, 8, () => this.enemyMgr.spawnWave([
+    // Wave 7 (t=40s): "First phantoms" — ghostly dense ring casters.
+    // Teach: dense rings with tight gaps.
+    wave(40, 7, () => this.enemyMgr.spawnWave([
+      this.phantomDef(W + 80, 300, 1500, 320, 'ring12', 3.4, 0),
+      this.phantomDef(W + 80, 780, 1500, 760, 'ring12', 3.4, 0.6),
+    ]));
+
+    // ── ACT 3: COMBINATION ──────────────────────────────────────────────
+    // Mix 2-3 types per wave. Alternate heavy and lighter pressure.
+
+    // Wave 8 (t=48s): "Fairy wall" — 5 fairies cascading, aimed3.
+    // LIGHTER — many weak enemies, manageable pressure.
+    wave(48, 8, () => this.enemyMgr.spawnWave([
       this.fairyDef(W + 80, 160, 1380, 160, 'aimed3', 1.8, 0),
       this.fairyDef(W + 80, 340, 1420, 340, 'aimed3', 1.8, 0.15),
       this.fairyDef(W + 80, 520, 1380, 520, 'aimed3', 1.8, 0.3),
@@ -414,16 +422,26 @@ export class GameScene extends Phaser.Scene {
       this.fairyDef(W + 80, 880, 1380, 880, 'aimed3', 1.8, 0.6),
     ]));
 
-    // Wave 9 (t=46s): "First knights" — 2 heavy armoured elites.
-    // Teach: tanky enemies require sustained focus.
-    wave(46, 9, () => this.enemyMgr.spawnWave([
-      this.knightDef(W + 80, 340, 1480, 340, 'aimed5', 2.8, 0),
-      this.knightDef(W + 80, 740, 1480, 740, 'aimed5', 2.8, 0.5),
+    // Wave 9 (t=53s): "Knight + phantom" — heavy + ghostly pressure.
+    // HEAVY — tanky + dense. Tests sustained dodging.
+    wave(53, 9, () => this.enemyMgr.spawnWave([
+      this.knightDef(W + 80,  240, 1500, 240, 'aimed5', 2.6, 0),
+      this.knightDef(W + 80,  840, 1500, 840, 'aimed5', 2.6, 0.45),
+      this.phantomDef(W + 80, 540, 1550, 540, 'ring12', 3.2, 0.9),
     ]));
 
-    // Wave 10 (t=51s): "Wisps + spread fairies" — evasive + stationary.
-    // Teach: different enemy behaviors require different positioning.
-    wave(51, 10, () => this.enemyMgr.spawnWave([
+    // Wave 10 (t=58s): "Bats + fairies" — speed vs accuracy.
+    // LIGHTER — fast targets but low density.
+    wave(58, 10, () => this.enemyMgr.spawnWave([
+      this.batDef(W + 80,  150, -200,  450, 'aimed',      1.0, 0),
+      this.batDef(W + 80,  400, -200,  250, 'aimed',      1.0, 0.25),
+      this.batDef(W + 80,  700, -200,  700, 'aimed_back', 1.2, 0.5),
+      this.fairyDef(W + 80, 540, 1400, 540, 'aimed3',     1.8, 0.7),
+    ]));
+
+    // Wave 11 (t=63s): "Wisps + spread fairies" — evasive + stationary.
+    // HEAVY — ring casters + spread fairies, dense bullet field.
+    wave(63, 11, () => this.enemyMgr.spawnWave([
       this.wispDef(W + 80,  200, 1520, 220, 'ring8',   2.6, 0),
       this.wispDef(W + 80,  540, 1560, 540, 'ring8',   2.6, 0.25),
       this.wispDef(W + 80,  880, 1520, 860, 'ring8',   2.6, 0.5),
@@ -431,17 +449,9 @@ export class GameScene extends Phaser.Scene {
       this.fairyDef(W + 80, 680, 1400, 680, 'spread5', 2.0, 0.85),
     ]));
 
-    // Wave 11 (t=56s): "First phantoms" — ghostly dense ring casters.
-    // Teach: dense rings with tight gaps, phantom flickers.
-    wave(56, 11, () => this.enemyMgr.spawnWave([
-      this.phantomDef(W + 80, 220, 1480, 260, 'ring12', 3.4, 0),
-      this.phantomDef(W + 80, 540, 1540, 540, 'ring12', 3.4, 0.6),
-      this.phantomDef(W + 80, 860, 1480, 820, 'ring12', 3.4, 1.2),
-    ]));
-
-    // Wave 12 (t=61s): "Mixed assault" — souls + bats + fairy.
-    // Teach: reading multiple overlapping patterns.
-    wave(61, 12, () => this.enemyMgr.spawnWave([
+    // Wave 12 (t=68s): "Mixed assault" — souls + bats + fairy.
+    // HEAVY — overlapping patterns, reading multiple types.
+    wave(68, 12, () => this.enemyMgr.spawnWave([
       this.soulDef(W + 80,  300, 1480, 300, 'ring8',  2.6, 0),
       this.soulDef(W + 80,  780, 1480, 780, 'ring8',  2.6, 0.35),
       this.batDef(W + 80,    80, -200, 500, 'aimed',  0.9, 0.7),
@@ -449,17 +459,12 @@ export class GameScene extends Phaser.Scene {
       this.fairyDef(W + 80, 540, 1380, 540, 'aimed3', 1.8, 1.3),
     ]));
 
-    // Wave 13 (t=66s): "Knight + phantom" — heavy + ghostly pressure.
-    // Combine tanky + dense for sustained dodging.
-    wave(66, 13, () => this.enemyMgr.spawnWave([
-      this.knightDef(W + 80,  240, 1500, 240, 'aimed5', 2.6, 0),
-      this.knightDef(W + 80,  840, 1500, 840, 'aimed5', 2.6, 0.45),
-      this.phantomDef(W + 80, 540, 1550, 540, 'ring12', 3.2, 0.9),
-    ]));
+    // ── ACT 4: CRESCENDO ────────────────────────────────────────────────
+    // Rapid escalation. Tighter gaps. Pre-miniboss tension build.
 
-    // Wave 14 (t=70s): "Bat swarm" — 5 crossing sweepers.
-    // Fast chaotic pressure before crescendo.
-    wave(70, 14, () => this.enemyMgr.spawnWave([
+    // Wave 13 (t=74s): "Bat swarm" — 5 crossing sweepers.
+    // Fast chaotic energy — shifts tempo before heavy closer.
+    wave(74, 13, () => this.enemyMgr.spawnWave([
       this.batDef(W + 80,  100, -200,  850, 'aimed',      0.8, 0),
       this.batDef(W + 80,  280, -200,  650, 'aimed',      0.8, 0.15),
       this.batDef(W + 80,  500, -200,  500, 'aimed',      0.8, 0.3),
@@ -467,9 +472,9 @@ export class GameScene extends Phaser.Scene {
       this.batDef(W + 80,  900, -200,  150, 'aimed_back', 1.0, 0.6),
     ]));
 
-    // Wave 15 (t=74s): "Soul fortress" — 3 souls with rings + escort fairies.
+    // Wave 14 (t=78s): "Soul fortress" — 3 souls with rings + escort fairies.
     // Dense bullet field, sustained pressure.
-    wave(74, 15, () => this.enemyMgr.spawnWave([
+    wave(78, 14, () => this.enemyMgr.spawnWave([
       this.soulDef(W + 80,  200, 1500, 240, 'ring8',  2.4, 0),
       this.soulDef(W + 80,  540, 1540, 540, 'ring12', 2.4, 0.3),
       this.soulDef(W + 80,  880, 1500, 840, 'ring8',  2.4, 0.6),
@@ -477,18 +482,27 @@ export class GameScene extends Phaser.Scene {
       this.fairyDef(W + 80, 700, 1420, 700, 'aimed3', 1.6, 1.1),
     ]));
 
-    // Wave 16 (t=78s): "Elite vanguard" — knights + wisps.
+    // Wave 15 (t=82s): "Diamond approach" — 4 fairies in spread formation.
+    // LIGHTER breather — easy wave lets player regroup before final push.
+    wave(82, 15, () => this.enemyMgr.spawnWave([
+      this.fairyDef(W + 80, 200, 1500, 260, 'aimed',  1.8, 0),
+      this.fairyDef(W + 80, 540, 1550, 400, 'aimed',  1.8, 0.2),
+      this.fairyDef(W + 80, 540, 1550, 680, 'aimed',  1.8, 0.4),
+      this.fairyDef(W + 80, 880, 1500, 820, 'aimed',  1.8, 0.6),
+    ]));
+
+    // Wave 16 (t=86s): "Elite vanguard" — knights + wisps.
     // Hard sustained damage + evasive targets.
-    wave(78, 16, () => this.enemyMgr.spawnWave([
+    wave(86, 16, () => this.enemyMgr.spawnWave([
       this.knightDef(W + 80, 300, 1480, 300, 'aimed5', 2.4, 0),
       this.knightDef(W + 80, 780, 1480, 780, 'aimed5', 2.4, 0.3),
       this.wispDef(W + 80,   440, 1520, 440, 'ring8',  2.2, 0.6),
       this.wispDef(W + 80,   640, 1520, 640, 'ring8',  2.2, 0.8),
     ]));
 
-    // Wave 17 (t=82s): "Phantom crescendo" — 2 phantoms + ring fairies.
+    // Wave 17 (t=90s): "Phantom crescendo" — 2 phantoms + ring fairies.
     // Peak regular-wave difficulty.
-    wave(82, 17, () => this.enemyMgr.spawnWave([
+    wave(90, 17, () => this.enemyMgr.spawnWave([
       this.phantomDef(W + 80, 280, 1500, 300, 'ring12', 3.0, 0),
       this.phantomDef(W + 80, 800, 1500, 780, 'ring12', 3.0, 0.5),
       this.fairyDef(W + 80,  540, 1420, 540, 'aimed3', 1.6, 1.0),
@@ -496,9 +510,9 @@ export class GameScene extends Phaser.Scene {
       this.fairyDef(W + 80,  880, 1400, 880, 'spread5', 1.8, 1.4),
     ]));
 
-    // Wave 18 (t=86s): "Grand crescendo" — all 6 types, staggered.
-    // Final wave before miniboss.
-    wave(86, 18, () => this.enemyMgr.spawnWave([
+    // Wave 18 (t=94s): "Grand crescendo" — all 6 types, staggered.
+    // Final wave before miniboss. Everything at once.
+    wave(94, 18, () => this.enemyMgr.spawnWave([
       this.soulDef(W + 80,   180, 1520, 200, 'ring8',   2.4, 0),
       this.knightDef(W + 80, 540, 1540, 540, 'aimed5',  2.4, 0.25),
       this.soulDef(W + 80,   900, 1520, 880, 'ring8',   2.4, 0.5),

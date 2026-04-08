@@ -93,55 +93,60 @@ export const BALANCE = {
 
   // ─── Wave timing ─────────────────────────────────────────────────────────
   waves: {
-    /** Total stage pre-miniboss duration target: ~80 seconds of waves */
+    /** Total stage pre-miniboss duration target: ~90 seconds of waves */
     totalWaves:    18,
 
-    /** Breathing room between concepts (seconds) */
+    /** Breathing room between sections (seconds) — larger gaps at act breaks */
     breathingRoom: 4,
 
     /** Miniboss triggers when all waves spawned AND enemies cleared */
+    /** Structure: Tutorial(1-3) → Introduction(4-7) → Combination(8-12) → Crescendo(13-18) */
   },
 
   // ─── Miniboss ────────────────────────────────────────────────────────────
   miniboss: {
-    hp:            1540,        // -60%, then -30%
-    attackTimer:   1.5,         // initial delay before first attack
+    hp:            2400,        // up from 1540 — prevent melting, ~30-40s fight
+    attackTimer:   2.0,         // initial delay before first attack (dramatic entrance)
     score:         3000,
 
     /** Bullet speed multiplier for miniboss attacks */
     bulletSpeedMult: 0.85,      // relative to base
+
+    /** Phase 2 triggers at this HP fraction — faster attacks, denser patterns */
+    phase2at:      0.45,
+    phase2speedMult: 1.18,      // 18% faster bullets in phase 2
   },
 
   // ─── Boss ────────────────────────────────────────────────────────────────
   boss: {
-    totalHp:       5600,        // -60%, then -30%
+    totalHp:       7800,        // up from 5600 — phases should feel distinct
 
     /** Phase thresholds as fraction of maxHp remaining */
-    phase2at:      0.60,        // enter phase 2 when HP drops to 60% (12000 HP left)
-    phase3at:      0.28,        // enter phase 3 when HP drops to 28% (5600 HP left)
+    phase2at:      0.65,        // enter phase 2 at 65% → 2730 HP in P1
+    phase3at:      0.30,        // enter phase 3 at 30% → 2730 HP in P2, 2340 HP in P3
 
     /** Per-phase bullet speeds */
-    phase1speed:   340,         // readable, learnable
+    phase1speed:   320,         // slow and readable — teach phase
     phase2speed:   380,         // moderate
-    phase3speed:   420,         // intense
+    phase3speed:   440,         // intense — noticeable speed jump
 
     /** Telegraph durations per phase */
-    phase1telegraph: 0.8,       // generous — teach patterns
+    phase1telegraph: 0.85,      // generous — teach patterns
     phase2telegraph: 0.5,       // moderate
-    phase3telegraph: 0.35,      // intense — less warning
+    phase3telegraph: 0.30,      // intense — snap reactions
 
     /** Pause between attacks per phase */
-    phase1pause:   1.6,         // breathing room
-    phase2pause:   1.2,         // tighter
-    phase3pause:   0.7,         // relentless
+    phase1pause:   1.8,         // long breathing room
+    phase2pause:   1.0,         // tighter
+    phase3pause:   0.50,        // relentless
 
     /** Idle time between attack cycles per phase */
-    phase1idle:    0.5,
-    phase2idle:    0.3,
-    phase3idle:    0.15,
+    phase1idle:    0.7,         // relaxed
+    phase2idle:    0.25,        // brisk
+    phase3idle:    0.10,        // no rest
 
     /** Phase transition grace period */
-    phaseTransitionPause: 2.5,
+    phaseTransitionPause: 3.0,  // dramatic pause on transition
 
     score:         20000,
 
