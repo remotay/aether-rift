@@ -828,8 +828,9 @@ export class Miniboss2 {
     const phase1 = [
       () => {
         // Lance Thrust: single aimed laser + 8-ring bullets
+        // Generous telegraph — this is the player's first miniboss laser
         const angle = Math.atan2(py - this.y, px - this.x);
-        this.laserFire(this.x, this.y, angle, 10, 0.6, 1.5, 0x00ccaa);
+        this.laserFire(this.x, this.y, angle, 10, 1.2, 1.5, 0x00ccaa);
         for (let i = 0; i < 8; i++) {
           const a = (i / 8) * TWO_PI;
           this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.9, Math.sin(a) * mbSpd * 0.9, 1, 0x00ccaa);
@@ -858,26 +859,38 @@ export class Miniboss2 {
         this.atkTimer = 1.3;
       },
       () => {
-        // Guard Counter: aimed3 fan + sweeping laser
+        // Guard Counter: aimed3 fan, then sweeping laser after a readable delay
+        // Fire the aimed bullets first as a warning that "something is coming"
         const base = Math.atan2(py - this.y, px - this.x);
         for (let i = -1; i <= 1; i++) {
           const a = base + i * 0.3;
           this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.05, Math.sin(a) * mbSpd * 1.05, 1, 0xff6600);
         }
-        // Short sweeping laser (90 deg over 1.5s)
-        const sweepSteps = 15;
-        const stepTime = 100;
-        const startA = base - Math.PI / 4;
-        let idx = 0;
-        const sweep = () => {
+        // Delay the sweep so the player sees the aimed shots first, then the
+        // laser telegraph appears — two distinct threats, not simultaneous chaos
+        this.scene.time.delayedCall(600, () => {
           if (!this.alive) return;
-          const angle = startA + (idx / sweepSteps) * (Math.PI / 2);
-          this.laserFire(this.x, this.y, angle, 10, 0.0, stepTime / 1000 + 0.05, 0x00ccaa);
-          idx++;
-          if (idx <= sweepSteps) this.scene.time.delayedCall(stepTime, sweep);
-        };
-        sweep();
-        this.atkTimer = 1.8;
+          // Fire a single wide-telegraph laser along the sweep's starting angle
+          // so the player sees WHERE the sweep will begin
+          const startA = base - Math.PI / 4;
+          this.laserFire(this.x, this.y, startA, 10, 0.8, 0.15, 0x00ccaa);
+          // Then begin the actual sweep after the telegraph resolves
+          this.scene.time.delayedCall(900, () => {
+            if (!this.alive) return;
+            const sweepSteps = 12;
+            const stepTime = 120;
+            let idx = 0;
+            const sweep = () => {
+              if (!this.alive) return;
+              const angle = startA + (idx / sweepSteps) * (Math.PI / 2);
+              this.laserFire(this.x, this.y, angle, 10, 0.0, stepTime / 1000 + 0.05, 0x00ccaa);
+              idx++;
+              if (idx <= sweepSteps) this.scene.time.delayedCall(stepTime, sweep);
+            };
+            sweep();
+          });
+        });
+        this.atkTimer = 2.4;
       },
     ];
 
@@ -885,13 +898,15 @@ export class Miniboss2 {
     const phase2 = [
       () => {
         // Lance Thrust (fast): laser + 8-ring
+        // Phase 2 is harder but still needs readable telegraph —
+        // 0.8s is shorter than P1's 1.2s but still gives time to react
         const angle = Math.atan2(py - this.y, px - this.x);
-        this.laserFire(this.x, this.y, angle, 12, 0.4, 1.2, 0x00ccaa);
+        this.laserFire(this.x, this.y, angle, 12, 0.8, 1.2, 0x00ccaa);
         for (let i = 0; i < 8; i++) {
           const a = (i / 8) * TWO_PI;
           this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.95, Math.sin(a) * mbSpd * 0.95, 1, 0x00ccaa);
         }
-        this.atkTimer = 0.9;
+        this.atkTimer = 1.2;
       },
       () => {
         // Shield Salvo (fast): 7-shot aimed fan
@@ -915,37 +930,60 @@ export class Miniboss2 {
         this.atkTimer = 1.0;
       },
       () => {
-        // Guard Counter (fast)
+        // Guard Counter (Phase 2): aimed3 fan, then sweeping laser after delay
+        // Same structure as Phase 1 Guard Counter but tighter timing:
+        //   - Aimed shots fire first as a warning
+        //   - 400ms delay (vs P1's 600ms) before telegraph appears
+        //   - 0.6s telegraph (vs P1's 0.8s) — player already learned this in P1
+        //   - 700ms delay (vs P1's 900ms) before sweep begins
+        //   - 15 steps at 80ms (vs P1's 12 at 120ms) — faster, denser sweep
         const base = Math.atan2(py - this.y, px - this.x);
         for (let i = -1; i <= 1; i++) {
           const a = base + i * 0.25;
           this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.1, Math.sin(a) * mbSpd * 1.1, 1, 0xff6600);
         }
-        const sweepSteps = 15;
-        const stepTime = 80;
-        const startA = base - Math.PI / 4;
-        let idx = 0;
-        const sweep = () => {
+        // Delay before telegraph — shorter than P1 because the player has seen this before
+        this.scene.time.delayedCall(400, () => {
           if (!this.alive) return;
-          const angle = startA + (idx / sweepSteps) * (Math.PI / 2);
-          this.laserFire(this.x, this.y, angle, 12, 0.0, stepTime / 1000 + 0.05, 0x00ccaa);
-          idx++;
-          if (idx <= sweepSteps) this.scene.time.delayedCall(stepTime, sweep);
-        };
-        sweep();
-        this.atkTimer = 1.4;
+          const startA = base - Math.PI / 4;
+          // Show telegraph at sweep start angle so the player knows where to avoid
+          this.laserFire(this.x, this.y, startA, 12, 0.6, 0.15, 0x00ccaa);
+          // Begin actual sweep after telegraph resolves
+          this.scene.time.delayedCall(700, () => {
+            if (!this.alive) return;
+            const sweepSteps = 15;
+            const stepTime = 80;
+            let idx = 0;
+            const sweep = () => {
+              if (!this.alive) return;
+              const angle = startA + (idx / sweepSteps) * (Math.PI / 2);
+              this.laserFire(this.x, this.y, angle, 12, 0.0, stepTime / 1000 + 0.05, 0x00ccaa);
+              idx++;
+              if (idx <= sweepSteps) this.scene.time.delayedCall(stepTime, sweep);
+            };
+            sweep();
+          });
+        });
+        this.atkTimer = 2.0;
       },
       () => {
         // Double Lance: two V-pattern lasers (30-deg spread) + aimed5 fan
+        // The V-shape creates a "corridor" — the player needs to see the
+        // telegraph lines to understand the safe zone between them.
+        // 0.7s telegraph (shorter than P1's single lance but enough to read the V)
         const base = Math.atan2(py - this.y, px - this.x);
         const spread = Math.PI / 6; // 30 degrees
-        this.laserFire(this.x, this.y, base + spread, 12, 0.5, 1.5, 0x00ccaa);
-        this.laserFire(this.x, this.y, base - spread, 12, 0.5, 1.5, 0x00ccaa);
-        for (let i = -2; i <= 2; i++) {
-          const a = base + i * 0.2;
-          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.0, Math.sin(a) * mbSpd * 1.0, 1, 0xff6600);
-        }
-        this.atkTimer = 1.2;
+        this.laserFire(this.x, this.y, base + spread, 12, 0.7, 1.5, 0x00ccaa);
+        this.laserFire(this.x, this.y, base - spread, 12, 0.7, 1.5, 0x00ccaa);
+        // Delay the aimed bullets slightly so the player processes lasers first
+        this.scene.time.delayedCall(300, () => {
+          if (!this.alive) return;
+          for (let i = -2; i <= 2; i++) {
+            const a = base + i * 0.2;
+            this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.0, Math.sin(a) * mbSpd * 1.0, 1, 0xff6600);
+          }
+        });
+        this.atkTimer = 1.5;
       },
       () => {
         // Overcharge: 14-ring + rapid aimed3 bursts (3 volleys)

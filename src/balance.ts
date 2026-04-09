@@ -30,8 +30,8 @@ export const BALANCE = {
 
     /** Damage formula: base + powerLevel * perLevel */
     damage: {
-      base:     2.3,            // +15% → gives 4.6/6.9/9.2/11.5
-      perLevel: 2.3,            // +15% → DPS at pwr2: 69, pwr3: 92, pwr4: 115
+      base:     2.6,            // gives 5.2/7.8/10.4/13.0
+      perLevel: 2.6,            // DPS at pwr2: 78, pwr3: 104, pwr4: 130
     },
 
     /** Bomb damage by target type */
