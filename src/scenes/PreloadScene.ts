@@ -51,6 +51,12 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('portrait-miniboss2', 'assets/portraits/miniboss2_portrait.png');
     this.load.image('portrait-boss2',     'assets/portraits/boss2_portrait.png');
 
+    // ── Background music ────────────────────────────────────────────────────
+    this.load.audio('bgm-title',  'assets/music/title-bgm.wav');
+    this.load.audio('bgm-stage1', 'assets/music/stage1-bgm.wav');
+    this.load.audio('bgm-stage2', 'assets/music/stage2-bgm.wav');
+    this.load.audio('bgm-boss',   'assets/music/boss-bgm.wav');
+
     // Loading bar
     const bw = 800; const bh = 32;
     const bx = W / 2 - bw / 2; const by = H / 2 + 60;

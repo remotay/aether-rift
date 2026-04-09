@@ -17,6 +17,7 @@ import { LaserPool }         from '../systems/Laser';
 import { HUD }              from '../ui/HUD';
 import { BossBar }          from '../ui/BossBar';
 import { sfx }              from '../audio/SoundSynth';
+import { bgm }              from '../audio/BGMManager';
 
 type GamePhase = 'intro' | 'waves' | 'miniboss' | 'interlude' | 'dialogue' | 'boss_warning' | 'boss' | 'clear' | 'over';
 
@@ -140,6 +141,10 @@ export class GameScene extends Phaser.Scene {
 
     // Build wave timeline
     this.buildTimeline();
+
+    // ── BGM ──────────────────────────────────────────────────────────────
+    bgm.bind(this);
+    bgm.play(this.stageId === 2 ? 'stage2' : 'stage1', 1200);
 
     // Fade-in intro
     this.cameras.main.fadeIn(500, 0, 0, 0);
@@ -1091,6 +1096,8 @@ export class GameScene extends Phaser.Scene {
     this.eBullets.releaseAll();
     this.laserPool.releaseAll();
 
+    // Switch to boss BGM with dramatic crossfade
+    bgm.play('boss', 1000);
     sfx.bossWarning();
 
     // Subtle screen shake throughout warning
@@ -1178,6 +1185,7 @@ export class GameScene extends Phaser.Scene {
 
       this.time.delayedCall(1800, () => {
         this.phase = 'clear';
+        bgm.stop(600);
         this.cameras.main.fadeOut(600, 0, 0, 0);
         this.time.delayedCall(650, () => {
           this.game.registry.set('hiScore', this.hiScore);
@@ -1620,6 +1628,7 @@ export class GameScene extends Phaser.Scene {
 
   private gameOver(): void {
     this.phase = 'over';
+    bgm.stop(500);
     this.game.registry.set('hiScore', this.hiScore);
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.time.delayedCall(550, () => {

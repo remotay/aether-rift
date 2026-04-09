@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { W, H, DEPTH, FONT } from '../constants';
 import { sfx } from '../audio/SoundSynth';
+import { bgm } from '../audio/BGMManager';
 
 export class TitleScene extends Phaser.Scene {
   constructor() { super({ key: 'TitleScene' }); }
@@ -95,10 +96,15 @@ export class TitleScene extends Phaser.Scene {
       color: '#2a3a4a',
     }).setOrigin(0.5).setDepth(DEPTH.HUD);
 
+    // ── BGM ────────────────────────────────────────────────────────────────
+    bgm.bind(this);
+    bgm.play('title');
+
     // ── Input ──────────────────────────────────────────────────────────────
     const zKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
     zKey.once('down', () => {
       sfx.uiConfirm();
+      bgm.stop(400);
       // Clear any carried state from a previous run so Stage 1 starts fresh
       this.registry.set('carryScore', undefined);
       this.registry.set('carryLives', undefined);

@@ -15,7 +15,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { GoogleGenAI, Modality } from '@google/genai';
 
-const MODEL = 'gemini-3-pro-image-preview';
+const IMAGE_MODEL = 'gemini-3-pro-image-preview';
+const MUSIC_MODEL = 'lyria-3-pro-preview';
 
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
@@ -33,7 +34,7 @@ function ensureDir(filePath: string): void {
 
 async function generateImage(prompt: string): Promise<Buffer> {
   const response = await ai.models.generateContent({
-    model: MODEL,
+    model: IMAGE_MODEL,
     contents: prompt,
     config: {
       responseModalities: [Modality.IMAGE, Modality.TEXT],
@@ -57,7 +58,7 @@ async function generateImageWithReference(
   const mimeType = inputPath.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
   const response = await ai.models.generateContent({
-    model: MODEL,
+    model: IMAGE_MODEL,
     contents: [
       {
         parts: [
@@ -77,6 +78,23 @@ async function generateImageWithReference(
     }
   }
   throw new Error('No image returned by Gemini API');
+}
+
+async function generateMusic(prompt: string): Promise<Buffer> {
+  const response = await ai.models.generateContent({
+    model: MUSIC_MODEL,
+    contents: prompt,
+    config: {
+      responseModalities: [Modality.AUDIO, Modality.TEXT],
+    },
+  });
+
+  for (const part of response.candidates?.[0]?.content?.parts ?? []) {
+    if (part.inlineData?.mimeType?.startsWith('audio/') && part.inlineData.data) {
+      return Buffer.from(part.inlineData.data, 'base64');
+    }
+  }
+  throw new Error('No audio returned by Gemini Lyria API');
 }
 
 // ── MCP server ────────────────────────────────────────────────────────────────
@@ -149,6 +167,31 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['prompt', 'inputPath', 'outPath'],
       },
     },
+    {
+      name: 'generate_music',
+      description:
+        'Generate a music track using Google Lyria 3 Pro. Produces a full-length instrumental or vocal track from a text description. ' +
+        'Supports genre, tempo/BPM, key, instrumentation, mood, and structural tags like [Intro], [Verse], [Chorus], [Bridge], [Outro]. ' +
+        'Can also use timestamp ranges like [0:00-0:15] to control when instruments enter. Output is WAV (48kHz stereo).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          prompt: {
+            type: 'string',
+            description:
+              'Detailed music generation prompt. Include genre, tempo, mood, instruments, and structure. ' +
+              'Example: "Intense Touhou-inspired bullet-hell BGM. 160 BPM, D minor. [Intro] Piano arpeggios with light strings. ' +
+              '[Verse] Driving drums, synth bass, fast violin melody. [Chorus] Full orchestral hit with trumpet fanfare."',
+          },
+          outPath: {
+            type: 'string',
+            description:
+              'Output file path relative to project root (e.g. C:/modern-danmaku-shooter/public/assets/music/stage1-bgm.wav).',
+          },
+        },
+        required: ['prompt', 'outPath'],
+      },
+    },
   ],
 }));
 
@@ -191,6 +234,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       writeFileSync(resolve(outPath), imageBuffer);
       return {
         content: [{ type: 'text', text: `Revised image written to ${outPath}` }],
+      };
+    }
+
+    if (name === 'generate_music') {
+      const { prompt, outPath } = args as { prompt: string; outPath: string };
+      const audioBuffer = await generateMusic(prompt);
+      ensureDir(outPath);
+      writeFileSync(resolve(outPath), audioBuffer);
+      const sizeMB = (audioBuffer.length / (1024 * 1024)).toFixed(1);
+      return {
+        content: [{ type: 'text', text: `Music track written to ${outPath} (${sizeMB} MB)` }],
       };
     }
 
