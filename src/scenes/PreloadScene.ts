@@ -502,46 +502,46 @@ export class PreloadScene extends Phaser.Scene {
     const g = this.add.graphics();
 
     // ── Enemy bullet — round small (32×32) ──────────────────────────────────
-    // Outer glow ring + bright center for premium readability
+    // Neutral white/gray layers — designed to be tinted to any color via setTint()
     g.clear();
-    g.fillStyle(0xddaaff, 0.15); g.fillCircle(16, 16, 15);   // soft outer glow
-    g.fillStyle(0xddaaff, 0.25); g.fillCircle(16, 16, 13);   // glow ring buildup
-    g.lineStyle(2, 0xeeccff, 0.5); g.strokeCircle(16, 16, 13); // crisp outer ring
-    g.fillStyle(0xcc88ee, 1);    g.fillCircle(16, 16, 10);   // main body
-    g.fillStyle(0xddaaff, 1);    g.fillCircle(16, 16, 7);    // inner lighter band
-    g.fillStyle(0xeeddff, 1);    g.fillCircle(16, 16, 4);    // bright inner
+    g.fillStyle(0xffffff, 0.15); g.fillCircle(16, 16, 15);   // soft outer glow
+    g.fillStyle(0xffffff, 0.25); g.fillCircle(16, 16, 13);   // glow ring buildup
+    g.lineStyle(2, 0xffffff, 0.5); g.strokeCircle(16, 16, 13); // crisp outer ring
+    g.fillStyle(0xcccccc, 1);    g.fillCircle(16, 16, 10);   // main body
+    g.fillStyle(0xdddddd, 1);    g.fillCircle(16, 16, 7);    // inner lighter band
+    g.fillStyle(0xeeeeee, 1);    g.fillCircle(16, 16, 4);    // bright inner
     g.fillStyle(0xffffff, 1);    g.fillCircle(16, 16, 2);    // hot center
     g.generateTexture('bul-round-sm', 32, 32);
 
     // ── Enemy bullet — round medium (44×44) ─────────────────────────────────
-    // Colored outer halo with layered rings
+    // Neutral white/gray layers — designed to be tinted to any color via setTint()
     g.clear();
-    g.fillStyle(0xff88cc, 0.1);  g.fillCircle(22, 22, 21);   // faint outer halo
-    g.fillStyle(0xff88cc, 0.18); g.fillCircle(22, 22, 19);   // halo buildup
-    g.fillStyle(0xff88cc, 0.28); g.fillCircle(22, 22, 17);   // halo inner
-    g.lineStyle(2, 0xffaadd, 0.6); g.strokeCircle(22, 22, 18); // halo ring edge
-    g.fillStyle(0xff4499, 1);    g.fillCircle(22, 22, 14);   // main body
-    g.fillStyle(0xff66aa, 1);    g.fillCircle(22, 22, 11);   // mid ring
-    g.fillStyle(0xff88cc, 1);    g.fillCircle(22, 22, 8);    // lighter ring
-    g.fillStyle(0xffbbdd, 1);    g.fillCircle(22, 22, 5);    // inner bright
+    g.fillStyle(0xffffff, 0.1);  g.fillCircle(22, 22, 21);   // faint outer halo
+    g.fillStyle(0xffffff, 0.18); g.fillCircle(22, 22, 19);   // halo buildup
+    g.fillStyle(0xffffff, 0.28); g.fillCircle(22, 22, 17);   // halo inner
+    g.lineStyle(2, 0xffffff, 0.6); g.strokeCircle(22, 22, 18); // halo ring edge
+    g.fillStyle(0xcccccc, 1);    g.fillCircle(22, 22, 14);   // main body
+    g.fillStyle(0xdddddd, 1);    g.fillCircle(22, 22, 11);   // mid ring
+    g.fillStyle(0xeeeeee, 1);    g.fillCircle(22, 22, 8);    // lighter ring
+    g.fillStyle(0xf8f8f8, 1);    g.fillCircle(22, 22, 5);    // inner bright
     g.fillStyle(0xffffff, 1);    g.fillCircle(22, 22, 2.5);  // hot center
     g.generateTexture('bul-round-md', 44, 44);
 
     // ── Enemy bullet — round large (56×56) ──────────────────────────────────
-    // Multiple detailed color rings with outer glow
+    // Neutral white/gray layers — designed to be tinted to any color via setTint()
     g.clear();
-    g.fillStyle(0xff44aa, 0.08); g.fillCircle(28, 28, 27);   // outermost glow
-    g.fillStyle(0xff44aa, 0.14); g.fillCircle(28, 28, 25);   // glow layer 2
-    g.fillStyle(0xff44aa, 0.22); g.fillCircle(28, 28, 23);   // glow layer 3
-    g.lineStyle(2, 0xff77cc, 0.5); g.strokeCircle(28, 28, 24); // outer ring accent
-    g.fillStyle(0xcc2288, 1);    g.fillCircle(28, 28, 21);   // dark outer body
-    g.fillStyle(0xdd3399, 1);    g.fillCircle(28, 28, 18);   // mid-dark ring
-    g.lineStyle(1, 0xff99dd, 0.4); g.strokeCircle(28, 28, 16); // subtle inner ring line
-    g.fillStyle(0xff44aa, 1);    g.fillCircle(28, 28, 15);   // main body
-    g.fillStyle(0xff66bb, 1);    g.fillCircle(28, 28, 12);   // lighter mid ring
-    g.fillStyle(0xff88cc, 1);    g.fillCircle(28, 28, 9);    // inner ring 1
-    g.fillStyle(0xffaadd, 1);    g.fillCircle(28, 28, 6);    // inner ring 2
-    g.fillStyle(0xffddef, 1);    g.fillCircle(28, 28, 3.5);  // bright core
+    g.fillStyle(0xffffff, 0.08); g.fillCircle(28, 28, 27);   // outermost glow
+    g.fillStyle(0xffffff, 0.14); g.fillCircle(28, 28, 25);   // glow layer 2
+    g.fillStyle(0xffffff, 0.22); g.fillCircle(28, 28, 23);   // glow layer 3
+    g.lineStyle(2, 0xffffff, 0.5); g.strokeCircle(28, 28, 24); // outer ring accent
+    g.fillStyle(0xaaaaaa, 1);    g.fillCircle(28, 28, 21);   // dark outer body
+    g.fillStyle(0xbbbbbb, 1);    g.fillCircle(28, 28, 18);   // mid-dark ring
+    g.lineStyle(1, 0xdddddd, 0.4); g.strokeCircle(28, 28, 16); // subtle inner ring line
+    g.fillStyle(0xcccccc, 1);    g.fillCircle(28, 28, 15);   // main body
+    g.fillStyle(0xdddddd, 1);    g.fillCircle(28, 28, 12);   // lighter mid ring
+    g.fillStyle(0xeeeeee, 1);    g.fillCircle(28, 28, 9);    // inner ring 1
+    g.fillStyle(0xf4f4f4, 1);    g.fillCircle(28, 28, 6);    // inner ring 2
+    g.fillStyle(0xfafafa, 1);    g.fillCircle(28, 28, 3.5);  // bright core
     g.fillStyle(0xffffff, 1);    g.fillCircle(28, 28, 1.5);  // hot center
     g.generateTexture('bul-round-lg', 56, 56);
 
