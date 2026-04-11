@@ -947,17 +947,17 @@ export class Miniboss2 {
           if (!this.alive) return;
           const startA = base - Math.PI / 4;
           // Show telegraph at sweep start angle so the player knows where to avoid
-          this.laserFire(this.x, this.y, startA, 12, 0.6, 0.15, 0x00ccaa);
+          this.laserFire(this.x, this.y, startA, 10, 0.6, 0.15, 0x00ccaa);
           // Begin actual sweep after telegraph resolves
           this.scene.time.delayedCall(700, () => {
             if (!this.alive) return;
-            const sweepSteps = 15;
-            const stepTime = 80;
+            const sweepSteps = 12;
+            const stepTime = 100;
             let idx = 0;
             const sweep = () => {
               if (!this.alive) return;
               const angle = startA + (idx / sweepSteps) * (Math.PI / 2);
-              this.laserFire(this.x, this.y, angle, 12, 0.0, stepTime / 1000 + 0.05, 0x00ccaa);
+              this.laserFire(this.x, this.y, angle, 10, 0.0, stepTime / 1000 + 0.05, 0x00ccaa);
               idx++;
               if (idx <= sweepSteps) this.scene.time.delayedCall(stepTime, sweep);
             };
@@ -967,20 +967,23 @@ export class Miniboss2 {
         this.atkTimer = 2.0;
       },
       () => {
-        // Double Lance: two V-pattern lasers (30-deg spread) + aimed5 fan
-        // The V-shape creates a "corridor" — the player needs to see the
-        // telegraph lines to understand the safe zone between them.
-        // 0.7s telegraph (shorter than P1's single lance but enough to read the V)
+        // Double Lance: two V-pattern lasers + aimed fan outside the V
+        // The V creates safe space BETWEEN the lasers — the player reads the
+        // telegraph and moves into the gap. Aimed bullets go OUTSIDE the V
+        // so the corridor between the lasers is the intended safe zone.
+        // 60-deg spread (was 30) gives a wide, readable corridor.
         const base = Math.atan2(py - this.y, px - this.x);
-        const spread = Math.PI / 6; // 30 degrees
-        this.laserFire(this.x, this.y, base + spread, 12, 0.7, 1.5, 0x00ccaa);
-        this.laserFire(this.x, this.y, base - spread, 12, 0.7, 1.5, 0x00ccaa);
-        // Delay the aimed bullets slightly so the player processes lasers first
+        const spread = Math.PI / 3; // 60 degrees — wide V with clear safe zone
+        this.laserFire(this.x, this.y, base + spread, 10, 0.7, 1.5, 0x00ccaa);
+        this.laserFire(this.x, this.y, base - spread, 10, 0.7, 1.5, 0x00ccaa);
+        // Aimed bullets go OUTSIDE the V — punish players who dodge the wrong way
         this.scene.time.delayedCall(300, () => {
           if (!this.alive) return;
-          for (let i = -2; i <= 2; i++) {
-            const a = base + i * 0.2;
-            this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.0, Math.sin(a) * mbSpd * 1.0, 1, 0xff6600);
+          for (let i = 0; i < 3; i++) {
+            const aUp  = base + spread + 0.15 + i * 0.2;
+            const aDown = base - spread - 0.15 - i * 0.2;
+            this.fire(this.x, this.y, Math.cos(aUp) * mbSpd * 0.95, Math.sin(aUp) * mbSpd * 0.95, 1, 0xff6600);
+            this.fire(this.x, this.y, Math.cos(aDown) * mbSpd * 0.95, Math.sin(aDown) * mbSpd * 0.95, 1, 0xff6600);
           }
         });
         this.atkTimer = 1.5;

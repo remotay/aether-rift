@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
-import { W, H, DEPTH, FONT } from '../constants';
+import { W, H, DEPTH, FONT, MAX_POWER } from '../constants';
 import { sfx } from '../audio/SoundSynth';
+import { bgm } from '../audio/BGMManager';
 
 export class PauseScene extends Phaser.Scene {
-  private items = ['RESUME', 'RETRY', 'QUIT TO TITLE'];
+  private items = ['RESUME', 'MAX POWER', 'SKIP TO NEXT STAGE', 'RETRY', 'QUIT TO TITLE'];
   private sel   = 0;
   private labels: Phaser.GameObjects.Text[] = [];
   private cursor!: Phaser.GameObjects.Text;
@@ -34,18 +35,20 @@ export class PauseScene extends Phaser.Scene {
     g.lineBetween(W / 2 - 240, H / 2 - 124, W / 2 + 240, H / 2 - 124);
 
     // Menu items
+    const startY = H / 2 - 80;
+    const gap = 64;
     this.labels = this.items.map((label, i) =>
-      this.add.text(W / 2, H / 2 - 40 + i * 88, label, {
+      this.add.text(W / 2, startY + i * gap, label, {
         fontFamily: FONT,
-        fontSize: '40px',
-        color: '#aabbcc',
+        fontSize: i === 1 || i === 2 ? '30px' : '40px',  // debug items smaller
+        color: i === 1 || i === 2 ? '#66aa88' : '#aabbcc',
         stroke: '#000',
         strokeThickness: 6,
       }).setOrigin(0.5).setDepth(DEPTH.OVERLAY),
     );
 
     // Selection cursor
-    this.cursor = this.add.text(W / 2 - 180, H / 2 - 40, '\u25B6', {
+    this.cursor = this.add.text(W / 2 - 220, startY, '\u25B6', {
       fontFamily: FONT,
       fontSize: '36px',
       color: '#aa88ff',
@@ -97,23 +100,51 @@ export class PauseScene extends Phaser.Scene {
   }
 
   private highlight(): void {
+    const startY = H / 2 - 80;
+    const gap = 64;
     this.labels.forEach((l, i) => {
-      l.setColor(i === this.sel ? '#ffffff' : '#556677');
+      const isDebug = i === 1 || i === 2;
+      l.setColor(i === this.sel ? '#ffffff' : (isDebug ? '#33665a' : '#556677'));
       l.setScale(i === this.sel ? 1.08 : 1);
     });
-    // Move cursor to selected item
-    this.cursor.setY(H / 2 - 40 + this.sel * 88);
+    this.cursor.setY(startY + this.sel * gap);
   }
 
   private confirm(): void {
     switch (this.sel) {
-      case 0: this.resume(); break;
-      case 1:
+      case 0: // RESUME
+        this.resume();
+        break;
+      case 1: { // MAX POWER
+        const gameScene = this.scene.get('GameScene') as { player?: { power: number } };
+        if (gameScene?.player) {
+          gameScene.player.power = MAX_POWER;
+        }
+        this.resume();
+        break;
+      }
+      case 2: { // SKIP TO NEXT STAGE
+        const currentStage = (this.registry.get('currentStage') as number | undefined) ?? 1;
+        const nextStage = currentStage + 1;
+        // Carry over max power for testing convenience
+        this.registry.set('carryScore', 0);
+        this.registry.set('carryLives', 3);
+        this.registry.set('carryBombs', 3);
+        this.registry.set('carryPower', MAX_POWER);
+        this.registry.set('currentStage', nextStage);
+        this.registry.set('stage1Cleared', true);
+        bgm.stop(300);
+        this.scene.stop('PauseScene');
+        this.scene.stop('GameScene');
+        this.scene.start('GameScene', { stage: nextStage });
+        break;
+      }
+      case 3: // RETRY
         this.scene.stop('PauseScene');
         this.scene.stop('GameScene');
         this.scene.start('GameScene');
         break;
-      case 2:
+      case 4: // QUIT TO TITLE
         this.scene.stop('PauseScene');
         this.scene.stop('GameScene');
         this.scene.start('TitleScene');
