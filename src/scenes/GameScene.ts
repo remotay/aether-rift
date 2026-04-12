@@ -20,8 +20,10 @@ import { HUD }              from '../ui/HUD';
 import { BossBar }          from '../ui/BossBar';
 import { sfx }              from '../audio/SoundSynth';
 import { bgm }              from '../audio/BGMManager';
+import { Apparition, STAGE1_SPELLS } from '../systems/Apparition';
+import type { SpellCard } from '../systems/Apparition';
 
-type GamePhase = 'intro' | 'waves' | 'miniboss' | 'interlude' | 'dialogue' | 'boss_warning' | 'boss' | 'clear' | 'over';
+type GamePhase = 'intro' | 'waves' | 'apparition' | 'miniboss' | 'interlude' | 'dialogue' | 'boss_warning' | 'boss' | 'clear' | 'over';
 
 interface Pickup {
   sprite: Phaser.GameObjects.Image;
@@ -41,6 +43,13 @@ export class GameScene extends Phaser.Scene {
   private hud!:        HUD;
   private bossBar!:    BossBar;
   private laserPool!:  LaserPool;
+
+  // Apparition system (Harbinger spell card interludes)
+  private apparition: Apparition | null = null;
+  private apparitionBullets: BulletPool | null = null;
+  private apparitionSpells: SpellCard[] = [];
+  private nextApparitionSpell = 0;
+  private apparitionSchedule: number[] = [];  // wave numbers that trigger apparitions
 
   // Background
   private starLayers: { gfx: Phaser.GameObjects.Graphics; speed: number; stars: { x: number; y: number; sz: number; a: number }[] }[] = [];
@@ -185,11 +194,34 @@ export class GameScene extends Phaser.Scene {
 
     // Stage timer & waves
     if (this.phase === 'waves') {
-      this.stageTimer += dt;
-      this.tickWaves();
-      if (this.enemyMgr.count() === 0 && this.nextWave >= this.waveEvents.length) {
-        this.enterMiniboss();
+      // Check if we should pause wave spawning for an apparition interlude
+      const apparitionPending = this.apparitionSchedule.length > 0 &&
+          this.nextApparitionSpell < this.apparitionSpells.length &&
+          this.currentWaveNum >= this.apparitionSchedule[0];
+
+      // Only advance stage timer & spawn new waves if no apparition is pending
+      if (!apparitionPending) {
+        this.stageTimer += dt;
+        this.tickWaves();
       }
+
+      if (this.enemyMgr.count() === 0) {
+        if (apparitionPending) {
+          // All enemies cleared — trigger apparition
+          this.apparitionSchedule.shift();
+          this.enterApparition();
+        } else if (this.nextWave >= this.waveEvents.length) {
+          this.enterMiniboss();
+        }
+      }
+    }
+
+    // Apparition update
+    if (this.phase === 'apparition' && this.apparition) {
+      this.apparition.update(dt, this.player.x, this.player.y);
+    }
+    if (this.apparitionBullets) {
+      this.apparitionBullets.update(dt, -160, W + 160, -160, H + 160);
     }
 
     // Phase timers
@@ -385,18 +417,28 @@ export class GameScene extends Phaser.Scene {
   // ─── WAVE TIMELINE ────────────────────────────────────────────────────────
 
   private buildTimeline(): void {
+    // Set up Harbinger apparition spells for each stage
+    this.apparitionSpells = STAGE1_SPELLS; // TODO: per-stage spells for stages 2-4
+    this.nextApparitionSpell = 0;
+
     if (this.stageId === 4) {
+      this.apparitionSchedule = [5, 10, 15];  // after waves 5, 10, 15
       this.buildStage4Timeline();
       return;
     }
     if (this.stageId === 3) {
+      this.apparitionSchedule = [5, 10, 15];
       this.buildStage3Timeline();
       return;
     }
     if (this.stageId === 2) {
+      this.apparitionSchedule = [5, 10, 15];
       this.buildStage2Timeline();
       return;
     }
+
+    // Stage 1: apparitions after waves 4, 9, 13, 17
+    this.apparitionSchedule = [4, 9, 13, 17];
 
     const wave = (t: number, waveNum: number, fn: () => void) => {
       this.waveEvents.push([t, () => {
@@ -1255,6 +1297,46 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // ─── APPARITION (Harbinger spell card interludes) ──────────────────────────
+
+  private enterApparition(): void {
+    this.phase = 'apparition';
+
+    // Clear all enemies & bullets for clean dodge challenge
+    this.enemyMgr.clearAll();
+    this.eBullets.releaseAll();
+    this.laserPool.releaseAll();
+
+    // Create dedicated bullet pool for apparition patterns
+    if (!this.apparitionBullets) {
+      this.apparitionBullets = new BulletPool(this, 'bul-round-md', 600, DEPTH.EBULLET);
+    }
+
+    const spell = this.apparitionSpells[this.nextApparitionSpell];
+    this.nextApparitionSpell++;
+
+    const fireFn = (x: number, y: number, vx: number, vy: number, sc = 1, tint = 0xcc66ff) => {
+      this.apparitionBullets!.fire(x, y, vx, vy, sc, sc, tint);
+    };
+    const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint, opts?) => {
+      this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint, opts);
+    };
+
+    // Show warning
+    this.hud.showMessage('⚡ HARBINGER ⚡', 1800, 0xcc66ff, 56);
+    sfx.bossWarning();
+
+    this.apparition = new Apparition(this, spell, fireFn, laserFireFn);
+    this.apparition.onComplete = () => {
+      // Clean up bullets & lasers
+      this.apparitionBullets?.releaseAll();
+      this.laserPool.releaseAll();
+      // Resume waves
+      this.apparition = null;
+      this.phase = 'waves';
+    };
+  }
+
   // ─── PHASE TRANSITIONS ────────────────────────────────────────────────────
 
   private enterMiniboss(): void {
@@ -2039,6 +2121,7 @@ export class GameScene extends Phaser.Scene {
     };
     checkBulletPool(this.eBullets);
     if (this.bossEBullets) checkBulletPool(this.bossEBullets);
+    if (this.apparitionBullets) checkBulletPool(this.apparitionBullets);
 
     // ── Laser beams → player ────────────────────────────────────────────────
     if (!this.player.dead && !this.player.invincible && !this.player.bombActive) {
@@ -2198,6 +2281,7 @@ export class GameScene extends Phaser.Scene {
       // Clear enemy bullets to give breathing room.
       this.eBullets.releaseAll();
       if (this.bossEBullets) this.bossEBullets.releaseAll();
+      if (this.apparitionBullets) this.apparitionBullets.releaseAll();
       this.laserPool.releaseAll();
     }
   }
@@ -2206,6 +2290,12 @@ export class GameScene extends Phaser.Scene {
     this.phase = 'over';
     bgm.stop(500);
     this.game.registry.set('hiScore', this.hiScore);
+    // Clean up apparition if active
+    if (this.apparition) {
+      this.apparition.destroy();
+      this.apparition = null;
+    }
+    this.apparitionBullets?.releaseAll();
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.time.delayedCall(550, () => {
       this.scene.start('GameOverScene', { score: this.score, hiScore: this.hiScore });

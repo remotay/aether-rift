@@ -81,6 +81,17 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('portrait-miniboss4', 'assets/portraits/miniboss4_portrait.png');
     this.load.image('portrait-boss4',     'assets/portraits/boss4_portrait.png');
 
+    // ── Harbinger (apparition interlude character) ────────────────────────
+    // These may not exist yet — procedural fallbacks are generated in create()
+    this.load.on('loaderror', (file: { key: string }) => {
+      if (file.key.startsWith('harbinger')) {
+        // Silently ignore — procedural fallbacks will be used
+      }
+    });
+    this.load.image('harbinger-body',     'assets/sprites/harbinger_body.png');
+    this.load.image('harbinger-cloak',    'assets/sprites/harbinger_cloak.png');
+    this.load.image('portrait-harbinger', 'assets/portraits/harbinger_portrait.png');
+
     // ── Background music ────────────────────────────────────────────────────
     this.load.audio('bgm-title',  'assets/music/title-bgm.wav');
     this.load.audio('bgm-stage1', 'assets/music/stage1-bgm.wav');
@@ -155,6 +166,23 @@ export class PreloadScene extends Phaser.Scene {
     this.processCoAlignedParts(['boss4-body', 'boss4-wings']);
     this.processSprite('portrait-miniboss4', { skipPass2: true });
     this.processSprite('portrait-boss4', { skipPass2: true });
+
+    // ── Harbinger (apparition character) ──
+    {
+      const hasBody  = this.textures.exists('harbinger-body');
+      const hasCloak = this.textures.exists('harbinger-cloak');
+      if (hasBody && hasCloak) {
+        this.processCoAlignedParts(['harbinger-body', 'harbinger-cloak']);
+      } else {
+        // Process body if it loaded, generate procedural cloak
+        if (hasBody) this.chromaKey('harbinger-body');
+        else this.textures.addCanvas('harbinger-body', this.buildHarbingerBody());
+        if (!hasCloak) this.textures.addCanvas('harbinger-cloak', this.buildHarbingerCloak());
+      }
+      if (this.textures.exists('portrait-harbinger')) {
+        this.processSprite('portrait-harbinger', { skipPass2: true });
+      }
+    }
 
     // Resize bg-sky to a power-of-two canvas for scrolling
     this.resizeBgSky('bg-sky');
@@ -786,5 +814,141 @@ export class PreloadScene extends Phaser.Scene {
     core.addColorStop(1,   'rgba(0,140,220,0)');
     ctx.fillStyle = core; ctx.beginPath(); ctx.arc(C, C, R * 0.55, 0, Math.PI * 2); ctx.fill();
     return canvas;
+  }
+
+  // ─── Procedural Harbinger body (fallback if generated sprites unavailable) ──
+  private buildHarbingerBody(): HTMLCanvasElement {
+    const SZ = 512;
+    const cv = document.createElement('canvas');
+    cv.width = SZ; cv.height = SZ;
+    const ctx = cv.getContext('2d')!;
+    const C = SZ / 2;
+
+    // Body silhouette — elegant robed figure
+    ctx.fillStyle = '#1a0833';
+    ctx.beginPath();
+    // Head
+    ctx.ellipse(C, C - 120, 40, 48, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Torso
+    ctx.beginPath();
+    ctx.moveTo(C - 35, C - 80);
+    ctx.lineTo(C + 35, C - 80);
+    ctx.lineTo(C + 55, C + 40);
+    ctx.lineTo(C - 55, C + 40);
+    ctx.closePath();
+    ctx.fill();
+
+    // Flowing skirt/robe
+    ctx.beginPath();
+    ctx.moveTo(C - 55, C + 40);
+    ctx.quadraticCurveTo(C - 85, C + 160, C - 60, C + 210);
+    ctx.lineTo(C + 60, C + 210);
+    ctx.quadraticCurveTo(C + 85, C + 160, C + 55, C + 40);
+    ctx.closePath();
+    ctx.fill();
+
+    // Accent glow on edges
+    const glow = ctx.createRadialGradient(C, C, 30, C, C, 180);
+    glow.addColorStop(0, 'rgba(200,100,255,0.15)');
+    glow.addColorStop(0.6, 'rgba(140,40,200,0.08)');
+    glow.addColorStop(1, 'rgba(80,0,120,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, SZ, SZ);
+
+    // Crown/tiara highlight
+    ctx.fillStyle = '#cc44ff';
+    ctx.beginPath();
+    ctx.moveTo(C - 15, C - 165);
+    ctx.lineTo(C, C - 185);
+    ctx.lineTo(C + 15, C - 165);
+    ctx.closePath();
+    ctx.fill();
+
+    // Eye highlights
+    ctx.fillStyle = '#ff88ff';
+    ctx.fillRect(C - 18, C - 130, 6, 4);
+    ctx.fillRect(C + 12, C - 130, 6, 4);
+
+    // Luminous edge accents
+    ctx.strokeStyle = 'rgba(200,100,255,0.4)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(C - 35, C - 80);
+    ctx.lineTo(C - 55, C + 40);
+    ctx.lineTo(C - 60, C + 210);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(C + 35, C - 80);
+    ctx.lineTo(C + 55, C + 40);
+    ctx.lineTo(C + 60, C + 210);
+    ctx.stroke();
+
+    return cv;
+  }
+
+  // ─── Procedural Harbinger cloak/energy (fallback) ──
+  private buildHarbingerCloak(): HTMLCanvasElement {
+    const SZ = 512;
+    const cv = document.createElement('canvas');
+    cv.width = SZ; cv.height = SZ;
+    const ctx = cv.getContext('2d')!;
+    const C = SZ / 2;
+
+    // Ethereal wing silhouettes
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = '#6622aa';
+
+    // Left wing
+    ctx.beginPath();
+    ctx.moveTo(C - 30, C - 60);
+    ctx.quadraticCurveTo(C - 180, C - 150, C - 160, C - 40);
+    ctx.quadraticCurveTo(C - 140, C + 60, C - 30, C + 20);
+    ctx.closePath();
+    ctx.fill();
+
+    // Right wing
+    ctx.beginPath();
+    ctx.moveTo(C + 30, C - 60);
+    ctx.quadraticCurveTo(C + 180, C - 150, C + 160, C - 40);
+    ctx.quadraticCurveTo(C + 140, C + 60, C + 30, C + 20);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.globalAlpha = 1.0;
+
+    // Energy glow edges on wings
+    ctx.strokeStyle = 'rgba(200,100,255,0.5)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(C - 30, C - 60);
+    ctx.quadraticCurveTo(C - 180, C - 150, C - 160, C - 40);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(C + 30, C - 60);
+    ctx.quadraticCurveTo(C + 180, C - 150, C + 160, C - 40);
+    ctx.stroke();
+
+    // Flowing energy tendrils below
+    ctx.strokeStyle = 'rgba(140,60,200,0.25)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+      const sx = C + (i - 2) * 30;
+      ctx.beginPath();
+      ctx.moveTo(sx, C + 40);
+      ctx.bezierCurveTo(sx - 20, C + 100, sx + 20, C + 160, sx, C + 220);
+      ctx.stroke();
+    }
+
+    // Central energy glow
+    const core = ctx.createRadialGradient(C, C - 20, 10, C, C - 20, 120);
+    core.addColorStop(0, 'rgba(200,100,255,0.2)');
+    core.addColorStop(0.5, 'rgba(140,40,200,0.08)');
+    core.addColorStop(1, 'rgba(80,0,120,0)');
+    ctx.fillStyle = core;
+    ctx.fillRect(0, 0, SZ, SZ);
+
+    return cv;
   }
 }
