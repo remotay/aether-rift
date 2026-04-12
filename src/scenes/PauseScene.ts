@@ -126,11 +126,11 @@ export class PauseScene extends Phaser.Scene {
       case 2: { // SKIP TO NEXT STAGE
         const currentStage = (this.registry.get('currentStage') as number | undefined) ?? 1;
         const nextStage = currentStage + 1;
-        // Carry over max power for testing convenience
-        this.registry.set('carryScore', 0);
-        this.registry.set('carryLives', 3);
-        this.registry.set('carryBombs', 3);
-        this.registry.set('carryPower', MAX_POWER);
+        const gameSceneSkip = this.scene.get('GameScene') as { player?: { power: number; lives: number; bombs: number }; score?: number };
+        this.registry.set('carryScore', gameSceneSkip?.score ?? 0);
+        this.registry.set('carryLives', gameSceneSkip?.player?.lives ?? 3);
+        this.registry.set('carryBombs', gameSceneSkip?.player?.bombs ?? 3);
+        this.registry.set('carryPower', gameSceneSkip?.player?.power ?? 0);
         this.registry.set('currentStage', nextStage);
         this.registry.set('stage1Cleared', true);
         if (currentStage >= 2) this.registry.set('stage2Cleared', true);
