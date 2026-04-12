@@ -112,13 +112,10 @@ export class PreloadScene extends Phaser.Scene {
     // ── Stage 2 assets ──────────────────────────────────────────────────────
     // Drone enemy pair
     this.processCoAlignedParts(['enemy-drone-body', 'enemy-drone-rotor']);
-    // Miniboss2 layers
-    this.chromaKey('miniboss2-body');
-    this.chromaKey('miniboss2-shield');
-    this.chromaKey('miniboss2-lance');
-    // Boss2 layers
-    this.chromaKey('boss2-body');
-    this.chromaKey('boss2-gears');
+    // Miniboss2 layers — co-aligned so layers share the same crop frame
+    this.processCoAlignedParts(['miniboss2-body', 'miniboss2-shield', 'miniboss2-lance']);
+    // Boss2 layers — co-aligned so body + gears stay aligned
+    this.processCoAlignedParts(['boss2-body', 'boss2-gears']);
     // Stage 2 portraits
     this.processSprite('portrait-miniboss2', { skipPass2: true });
     this.processSprite('portrait-boss2',     { skipPass2: true });
@@ -127,10 +124,10 @@ export class PreloadScene extends Phaser.Scene {
     this.processCoAlignedParts(['enemy-gunner-body', 'enemy-gunner-wings']);
     this.processCoAlignedParts(['enemy-bloom-body', 'enemy-bloom-petals']);
     this.processCoAlignedParts(['enemy-prism-body', 'enemy-prism-crystal']);
-    this.chromaKey('miniboss3-body');
-    this.chromaKey('miniboss3-thorns');
-    this.chromaKey('boss3-body');
-    this.chromaKey('boss3-wings');
+    // Miniboss3 layers — co-aligned
+    this.processCoAlignedParts(['miniboss3-body', 'miniboss3-thorns']);
+    // Boss3 layers — co-aligned
+    this.processCoAlignedParts(['boss3-body', 'boss3-wings']);
     this.processSprite('portrait-miniboss3', { skipPass2: true });
     this.processSprite('portrait-boss3', { skipPass2: true });
 
