@@ -66,11 +66,27 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('portrait-miniboss3', 'assets/portraits/miniboss3_portrait.png');
     this.load.image('portrait-boss3',     'assets/portraits/boss3_portrait.png');
 
+    // ── Stage 4 assets ──────────────────────────────────────────────────────
+    this.load.image('bg-sky-s4',          'assets/backgrounds/bg-sky-s4.png');
+    this.load.image('enemy-seraph-body',  'assets/sprites/enemy_seraph_body.png');
+    this.load.image('enemy-seraph-wings', 'assets/sprites/enemy_seraph_wings.png');
+    this.load.image('enemy-shade-body',   'assets/sprites/enemy_shade_body.png');
+    this.load.image('enemy-shade-aura',   'assets/sprites/enemy_shade_aura.png');
+    this.load.image('enemy-comet-body',   'assets/sprites/enemy_comet_body.png');
+    this.load.image('enemy-comet-tail',   'assets/sprites/enemy_comet_tail.png');
+    this.load.image('miniboss4-body',     'assets/sprites/miniboss4_body.png');
+    this.load.image('miniboss4-orbs',     'assets/sprites/miniboss4_orbs.png');
+    this.load.image('boss4-body',         'assets/sprites/boss4_body.png');
+    this.load.image('boss4-wings',        'assets/sprites/boss4_wings.png');
+    this.load.image('portrait-miniboss4', 'assets/portraits/miniboss4_portrait.png');
+    this.load.image('portrait-boss4',     'assets/portraits/boss4_portrait.png');
+
     // ── Background music ────────────────────────────────────────────────────
     this.load.audio('bgm-title',  'assets/music/title-bgm.wav');
     this.load.audio('bgm-stage1', 'assets/music/stage1-bgm.wav');
     this.load.audio('bgm-stage2', 'assets/music/stage2-bgm.wav');
     this.load.audio('bgm-stage3', 'assets/music/stage3-bgm.wav');
+    this.load.audio('bgm-stage4', 'assets/music/stage4-bgm.wav');
     this.load.audio('bgm-boss',   'assets/music/boss-bgm.wav');
 
     // Loading bar
@@ -131,12 +147,23 @@ export class PreloadScene extends Phaser.Scene {
     this.processSprite('portrait-miniboss3', { skipPass2: true });
     this.processSprite('portrait-boss3', { skipPass2: true });
 
+    // ── Stage 4 assets ──
+    this.processCoAlignedParts(['enemy-seraph-body', 'enemy-seraph-wings']);
+    this.processCoAlignedParts(['enemy-shade-body', 'enemy-shade-aura']);
+    this.processCoAlignedParts(['enemy-comet-body', 'enemy-comet-tail']);
+    this.processCoAlignedParts(['miniboss4-body', 'miniboss4-orbs']);
+    this.processCoAlignedParts(['boss4-body', 'boss4-wings']);
+    this.processSprite('portrait-miniboss4', { skipPass2: true });
+    this.processSprite('portrait-boss4', { skipPass2: true });
+
     // Resize bg-sky to a power-of-two canvas for scrolling
     this.resizeBgSky('bg-sky');
     // Stage 2 background
     this.resizeBgSky('bg-sky-s2');
     // Stage 3 background
     this.resizeBgSky('bg-sky-s3');
+    // Stage 4 background
+    this.resizeBgSky('bg-sky-s4');
 
     // Procedural textures
     this.generateTextures();

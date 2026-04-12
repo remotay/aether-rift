@@ -27,10 +27,13 @@ export type EnemyPattern =
   | 'burst3'      // 3-round rapid burst
   | 'split'       // forward-then-split
   | 'spiral3'     // 3-shot spinning spiral
+  | 'spray16'     // massive 16-bullet fan spray
+  | 'helix'       // oscillating double-stream
+  | 'scatter'     // tight random cluster burst
   | 'none';
 
 export interface EnemyDef {
-  type:      'fairy' | 'soul' | 'wisp' | 'phantom' | 'knight' | 'bat' | 'drone' | 'gunner' | 'bloom' | 'prism';
+  type:      'fairy' | 'soul' | 'wisp' | 'phantom' | 'knight' | 'bat' | 'drone' | 'gunner' | 'bloom' | 'prism' | 'seraph' | 'shade' | 'comet';
   x:         number;
   y:         number;
   targetX:   number;
@@ -119,6 +122,21 @@ const ENEMY_CONFIG: Record<EnemyDef['type'], EnemyTypeConfig> = {
     bodyKey: 'enemy-prism-body', animKey: 'enemy-prism-crystal', animBehind: false,
     scale: 0.06,
     anim: { ampX: 5, ampY: 4, ampRot: 360, freqX: 1.5, freqY: 1.2, freqRot: 1.8, phase: 0.6 },
+  },
+  seraph: {
+    bodyKey: 'enemy-seraph-body', animKey: 'enemy-seraph-wings', animBehind: true,
+    scale: 0.08,
+    anim: { ampX: 6, ampY: 10, ampRot: 4, freqX: 0.8, freqY: 0.6, freqRot: 0.7, phase: 0.3 },
+  },
+  shade: {
+    bodyKey: 'enemy-shade-body', animKey: 'enemy-shade-aura', animBehind: true,
+    scale: 0.06,
+    anim: { ampX: 14, ampY: 8, ampRot: 5, freqX: 1.0, freqY: 0.8, freqRot: 0.9, phase: 0.5 },
+  },
+  comet: {
+    bodyKey: 'enemy-comet-body', animKey: 'enemy-comet-tail', animBehind: true,
+    scale: 0.055,
+    anim: { ampX: 4, ampY: 6, ampRot: 6, freqX: 3.0, freqY: 3.5, freqRot: 2.5, phase: 0.1 },
   },
 };
 
@@ -224,6 +242,9 @@ export class Enemy {
       gunner:  [32, 32],
       bloom:   [40, 40],
       prism:   [34, 34],
+      seraph:  [48, 48],
+      shade:   [30, 30],
+      comet:   [26, 26],
     };
     [this.hW, this.hH] = hbMap[def.type];
 

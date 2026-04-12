@@ -294,13 +294,74 @@ export const BALANCE = {
     },
   },
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Stage 4 — Celestial Rift
+  // ═══════════════════════════════════════════════════════════════════════════
+  stage4: {
+    enemies: {
+      seraph: { hp: 35, speed: 260, hoverDur: 5.5, score: 220 },
+      shade:  { hp: 24, speed: 330, hoverDur: 4.5, score: 170 },
+      comet:  { hp: 18, speed: 380, hoverDur: 3.5, score: 150 },
+    },
+
+    bulletSpeed: {
+      early: 340,
+      mid:   420,
+      late:  500,
+      base:  420,
+    },
+
+    miniboss: {
+      hp:              4400,
+      attackTimer:     1.8,
+      score:           6000,
+      bulletSpeedMult: 0.95,
+      phase2at:        0.40,
+      phase2speedMult: 1.25,
+    },
+
+    boss: {
+      totalHp:              14000,
+      phase2at:             0.65,
+      phase3at:             0.28,
+      phase1speed:          380,
+      phase2speed:          450,
+      phase3speed:          520,
+      phase1telegraph:      0.80,
+      phase2telegraph:      0.45,
+      phase3telegraph:      0.30,
+      phase1pause:          1.4,
+      phase2pause:          0.8,
+      phase3pause:          0.45,
+      phase1idle:           0.50,
+      phase2idle:           0.18,
+      phase3idle:           0.08,
+      phaseTransitionPause: 3.0,
+      score:                40000,
+      homeX:                1500,
+      homeY:                540,
+    },
+
+    laser: {
+      thinWidth:        12,
+      wideWidth:        28,
+      telegraphAlpha:   0.4,
+      activeAlpha:      0.95,
+      defaultTelegraph: 1.0,
+      defaultActive:    2.0,
+      fadeoutDur:       0.3,
+      maxSimultaneous:  10,
+    },
+  },
+
 } as const;
 
 // ─── Derived helpers ──────────────────────────────────────────────────────
 
 /** Get bullet speed for a given wave number (1-indexed) */
 export function getWaveBulletSpeed(waveNum: number, stage = 1): number {
-  const speeds = stage === 3 ? BALANCE.stage3.bulletSpeed
+  const speeds = stage === 4 ? BALANCE.stage4.bulletSpeed
+    : stage === 3 ? BALANCE.stage3.bulletSpeed
     : stage === 2 ? BALANCE.stage2.bulletSpeed
     : BALANCE.bulletSpeed;
   if (waveNum <= 3)  return speeds.early;

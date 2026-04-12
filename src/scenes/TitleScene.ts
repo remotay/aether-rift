@@ -59,7 +59,10 @@ export class TitleScene extends Phaser.Scene {
     // Subtitle — show available stages
     const s1Cleared = this.registry.get('stage1Cleared') ?? false;
     const s2Cleared = this.registry.get('stage2Cleared') ?? false;
-    const subtitleText = s2Cleared
+    const s3Cleared = this.registry.get('stage3Cleared') ?? false;
+    const subtitleText = s3Cleared
+      ? '— STAGES:  I  ·  II  ·  III  ·  IV —'
+      : s2Cleared
       ? '— STAGES:  I  ·  II  ·  III —'
       : s1Cleared
       ? '— STAGES:  I  ·  II —'

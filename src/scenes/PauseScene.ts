@@ -134,6 +134,7 @@ export class PauseScene extends Phaser.Scene {
         this.registry.set('currentStage', nextStage);
         this.registry.set('stage1Cleared', true);
         if (currentStage >= 2) this.registry.set('stage2Cleared', true);
+        if (currentStage >= 3) this.registry.set('stage3Cleared', true);
         bgm.stop(0);
         this.scene.stop('PauseScene');
         this.scene.stop('GameScene');

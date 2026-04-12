@@ -13,6 +13,7 @@ import type { EnemyDef }    from '../systems/Enemy';
 import { Boss, Miniboss }   from '../systems/Boss';
 import { Boss2, Miniboss2 } from '../systems/Boss2';
 import { Boss3, Miniboss3 } from '../systems/Boss3';
+import { Boss4, Miniboss4 } from '../systems/Boss4';
 import type { LaserFireFn }  from '../systems/Laser';
 import { LaserPool }         from '../systems/Laser';
 import { HUD }              from '../ui/HUD';
@@ -35,8 +36,8 @@ export class GameScene extends Phaser.Scene {
   private pBullets!:   BulletPool;
   private eBullets!:   BulletPool;
   private enemyMgr!:   EnemyManager;
-  private boss:        Boss | Boss2 | Boss3 | null = null;
-  private miniboss:    Miniboss | Miniboss2 | Miniboss3 | null = null;
+  private boss:        Boss | Boss2 | Boss3 | Boss4 | null = null;
+  private miniboss:    Miniboss | Miniboss2 | Miniboss3 | Miniboss4 | null = null;
   private hud!:        HUD;
   private bossBar!:    BossBar;
   private laserPool!:  LaserPool;
@@ -145,7 +146,7 @@ export class GameScene extends Phaser.Scene {
 
     // ── BGM ──────────────────────────────────────────────────────────────
     bgm.bind(this);
-    bgm.play(this.stageId === 3 ? 'stage3' : this.stageId === 2 ? 'stage2' : 'stage1', 1200);
+    bgm.play(this.stageId === 4 ? 'stage4' : this.stageId === 3 ? 'stage3' : this.stageId === 2 ? 'stage2' : 'stage1', 1200);
 
     // Fade-in intro
     this.cameras.main.fadeIn(500, 0, 0, 0);
@@ -153,6 +154,7 @@ export class GameScene extends Phaser.Scene {
       1: 'STAGE I: THRESHOLD OF ETERNITY',
       2: 'STAGE II: CLOCKWORK ABYSS',
       3: 'STAGE III: SHATTERED EDEN',
+      4: 'STAGE IV: CELESTIAL RIFT',
     };
     const stageLabel = stageLabels[this.stageId] ?? `STAGE  ${this.stageId}`;
     this.time.delayedCall(600, () => {
@@ -242,11 +244,11 @@ export class GameScene extends Phaser.Scene {
 
   private buildBackground(): void {
     // Solid base — prevents any checkerboard gaps
-    const baseTint = this.stageId === 3 ? 0x0a0418 : this.stageId === 2 ? 0x020a0e : 0x06010e;
+    const baseTint = this.stageId === 4 ? 0x080422 : this.stageId === 3 ? 0x0a0418 : this.stageId === 2 ? 0x020a0e : 0x06010e;
     this.add.rectangle(W / 2, H / 2, W, H, baseTint).setDepth(DEPTH.BG_FAR - 1);
 
     // Static atmospheric sky backdrop
-    const skyKey = this.stageId === 3 ? 'bg-sky-s3' : this.stageId === 2 ? 'bg-sky-s2' : 'bg-sky';
+    const skyKey = this.stageId === 4 ? 'bg-sky-s4' : this.stageId === 3 ? 'bg-sky-s3' : this.stageId === 2 ? 'bg-sky-s2' : 'bg-sky';
     if (this.textures.exists(skyKey)) {
       this.add.image(W / 2, H / 2, skyKey)
         .setDisplaySize(W, H)
@@ -260,7 +262,9 @@ export class GameScene extends Phaser.Scene {
       if (this.textures.exists(k)) this.textures.remove(k);
     });
 
-    if (this.stageId === 3) {
+    if (this.stageId === 4) {
+      this.buildStage4Parallax();
+    } else if (this.stageId === 3) {
       this.buildStage3Parallax();
     } else if (this.stageId === 2) {
       this.buildStage2Parallax();
@@ -381,6 +385,10 @@ export class GameScene extends Phaser.Scene {
   // ─── WAVE TIMELINE ────────────────────────────────────────────────────────
 
   private buildTimeline(): void {
+    if (this.stageId === 4) {
+      this.buildStage4Timeline();
+      return;
+    }
     if (this.stageId === 3) {
       this.buildStage3Timeline();
       return;
@@ -641,6 +649,21 @@ export class GameScene extends Phaser.Scene {
   private prismDef(x: number, y: number, tx: number, ty: number, pattern: EnemyDef['pattern'], shootInt: number, delay = 0): EnemyDef {
     const c = BALANCE.stage3.enemies.prism;
     return { type: 'prism', x, y, targetX: tx, targetY: ty, hp: c.hp, speed: c.speed, hoverDur: c.hoverDur, pattern, shootInt, score: c.score, delay };
+  }
+
+  private seraphDef(x: number, y: number, tx: number, ty: number, pattern: EnemyDef['pattern'], shootInt: number, delay = 0): EnemyDef {
+    const s = BALANCE.stage4.enemies.seraph;
+    return { type: 'seraph', x, y, targetX: tx, targetY: ty, hp: s.hp, speed: s.speed, hoverDur: s.hoverDur, pattern, shootInt, score: s.score, delay };
+  }
+
+  private shadeDef(x: number, y: number, tx: number, ty: number, pattern: EnemyDef['pattern'], shootInt: number, delay = 0): EnemyDef {
+    const s = BALANCE.stage4.enemies.shade;
+    return { type: 'shade', x, y, targetX: tx, targetY: ty, hp: s.hp, speed: s.speed, hoverDur: s.hoverDur, pattern, shootInt, score: s.score, delay };
+  }
+
+  private cometDef(x: number, y: number, tx: number, ty: number, pattern: EnemyDef['pattern'], shootInt: number, delay = 0): EnemyDef {
+    const s = BALANCE.stage4.enemies.comet;
+    return { type: 'comet', x, y, targetX: tx, targetY: ty, hp: s.hp, speed: s.speed, hoverDur: s.hoverDur, pattern, shootInt, score: s.score, delay };
   }
 
   // ─── STAGE 2 WAVE TIMELINE ────────────────────────────────────────────────
@@ -1038,6 +1061,193 @@ export class GameScene extends Phaser.Scene {
     ]));
   }
 
+  // ─── STAGE 4 WAVE TIMELINE ────────────────────────────────────────────────
+
+  private buildStage4Timeline(): void {
+    const wave = (t: number, waveNum: number, fn: () => void) => {
+      this.waveEvents.push([t, () => {
+        this.currentWaveNum = waveNum;
+        fn();
+      }]);
+    };
+
+    // ======================================================================
+    //  20 waves over ~115 seconds — celestial rift, cosmic enemies
+    //
+    //  ACT 1: TUTORIAL (waves 1-4)      — introduce shade, comet
+    //  ACT 2: INTRODUCTION (waves 5-8)  — introduce seraph (tank), mixed
+    //  ACT 3: COMBINATION (waves 9-14)  — dense mixed waves, laser patterns
+    //  ACT 4: CRESCENDO (waves 15-20)   — pre-miniboss pressure, all combined
+    // ======================================================================
+
+    // ── ACT 1: TUTORIAL ─────────────────────────────────────────────────
+    // Wave 1 (t=2s): 3 shades (helix) — introduce the type
+    wave(2, 1, () => this.enemyMgr.spawnWave([
+      this.shadeDef(W + 80,  260, 1380, 280, 'helix', 2.2, 0),
+      this.shadeDef(W + 80,  540, 1400, 540, 'helix', 2.2, 0.3),
+      this.shadeDef(W + 80,  820, 1380, 800, 'helix', 2.2, 0.6),
+    ]));
+
+    // Wave 2 (t=8s): 3 comets (scatter) — introduce fast scatter enemies
+    wave(8, 2, () => this.enemyMgr.spawnWave([
+      this.cometDef(W + 80,  200, 1460, 220, 'scatter', 2.0, 0),
+      this.cometDef(W + 80,  540, 1480, 540, 'scatter', 2.0, 0.3),
+      this.cometDef(W + 80,  880, 1460, 860, 'scatter', 2.0, 0.6),
+    ]));
+
+    // Wave 3 (t=12s): 2 shades + 2 comets mixed
+    wave(12, 3, () => this.enemyMgr.spawnWave([
+      this.shadeDef(W + 80,  300, 1400, 300, 'helix', 2.2, 0),
+      this.shadeDef(W + 80,  780, 1400, 780, 'helix', 2.2, 0.3),
+      this.cometDef(W + 80,  450, 1460, 450, 'scatter', 2.0, 0.5),
+      this.cometDef(W + 80,  630, 1460, 630, 'scatter', 2.0, 0.7),
+    ]));
+
+    // Wave 4 (t=18s): 4 comets (aimed) + 1 shade (helix) — ramp up
+    wave(18, 4, () => this.enemyMgr.spawnWave([
+      this.cometDef(W + 80,  180, 1400, 200, 'aimed', 1.8, 0),
+      this.cometDef(W + 80,  400, 1420, 400, 'aimed', 1.8, 0.2),
+      this.cometDef(W + 80,  660, 1400, 660, 'aimed', 1.8, 0.4),
+      this.cometDef(W + 80,  880, 1420, 880, 'aimed', 1.8, 0.6),
+      this.shadeDef(W + 80,  540, 1500, 540, 'helix', 2.4, 0.8),
+    ]));
+
+    // ── ACT 2: INTRODUCTION ─────────────────────────────────────────────
+    // Wave 5 (t=25s): 1 seraph (spray16) + 2 comets — introduce the tanky enemy
+    wave(25, 5, () => this.enemyMgr.spawnWave([
+      this.seraphDef(W + 80, 540, 1500, 540, 'spray16', 3.0, 0),
+      this.cometDef(W + 80,  300, 1400, 300, 'scatter', 2.0, 0.5),
+      this.cometDef(W + 80,  780, 1400, 780, 'scatter', 2.0, 0.7),
+    ]));
+
+    // Wave 6 (t=32s): 2 shades (helix) + 1 seraph (spray16)
+    wave(32, 6, () => this.enemyMgr.spawnWave([
+      this.shadeDef(W + 80,  280, 1420, 280, 'helix', 2.2, 0),
+      this.shadeDef(W + 80,  800, 1420, 800, 'helix', 2.2, 0.3),
+      this.seraphDef(W + 80, 540, 1520, 540, 'spray16', 3.0, 0.6),
+    ]));
+
+    // Wave 7 (t=38s): 3 comets (scatter) + 2 shades (aimed)
+    wave(38, 7, () => this.enemyMgr.spawnWave([
+      this.cometDef(W + 80,  200, 1400, 220, 'scatter', 2.0, 0),
+      this.cometDef(W + 80,  540, 1420, 540, 'scatter', 2.0, 0.25),
+      this.cometDef(W + 80,  880, 1400, 860, 'scatter', 2.0, 0.5),
+      this.shadeDef(W + 80,  380, 1480, 380, 'aimed', 2.0, 0.7),
+      this.shadeDef(W + 80,  700, 1480, 700, 'aimed', 2.0, 0.9),
+    ]));
+
+    // Wave 8 (t=44s): 2 seraphs (spray16) — double tank pressure
+    wave(44, 8, () => this.enemyMgr.spawnWave([
+      this.seraphDef(W + 80, 340, 1500, 340, 'spray16', 2.8, 0),
+      this.seraphDef(W + 80, 740, 1500, 740, 'spray16', 2.8, 0.5),
+    ]));
+
+    // ── ACT 3: COMBINATION ──────────────────────────────────────────────
+    // Wave 9 (t=52s): 2 shades (laser_aimed) + 2 comets (scatter) — introduce laser enemies
+    wave(52, 9, () => this.enemyMgr.spawnWave([
+      this.shadeDef(W + 80,  300, 1480, 300, 'laser_aimed', 3.0, 0),
+      this.shadeDef(W + 80,  780, 1480, 780, 'laser_aimed', 3.0, 0.4),
+      this.cometDef(W + 80,  450, 1400, 450, 'scatter', 2.0, 0.7),
+      this.cometDef(W + 80,  630, 1400, 630, 'scatter', 2.0, 0.9),
+    ]));
+
+    // Wave 10 (t=58s): 1 seraph (spray16) + 2 comets (burst3) + 1 shade (helix)
+    wave(58, 10, () => this.enemyMgr.spawnWave([
+      this.seraphDef(W + 80, 540, 1520, 540, 'spray16', 2.8, 0),
+      this.cometDef(W + 80,  300, 1400, 300, 'burst3', 2.0, 0.3),
+      this.cometDef(W + 80,  780, 1400, 780, 'burst3', 2.0, 0.5),
+      this.shadeDef(W + 80,  440, 1460, 440, 'helix', 2.2, 0.8),
+    ]));
+
+    // Wave 11 (t=64s): 3 shades (helix) + 1 seraph (laser_aimed)
+    wave(64, 11, () => this.enemyMgr.spawnWave([
+      this.shadeDef(W + 80,  200, 1420, 220, 'helix', 2.2, 0),
+      this.shadeDef(W + 80,  540, 1440, 540, 'helix', 2.2, 0.25),
+      this.shadeDef(W + 80,  880, 1420, 860, 'helix', 2.2, 0.5),
+      this.seraphDef(W + 80, 540, 1520, 540, 'laser_aimed', 3.2, 0.8),
+    ]));
+
+    // Wave 12 (t=70s): 2 seraphs (spray16) + 2 comets (scatter)
+    wave(70, 12, () => this.enemyMgr.spawnWave([
+      this.seraphDef(W + 80, 340, 1500, 340, 'spray16', 2.8, 0),
+      this.seraphDef(W + 80, 740, 1500, 740, 'spray16', 2.8, 0.4),
+      this.cometDef(W + 80,  440, 1400, 440, 'scatter', 2.0, 0.7),
+      this.cometDef(W + 80,  640, 1400, 640, 'scatter', 2.0, 0.9),
+    ]));
+
+    // Wave 13 (t=76s): 2 shades (laser_cross) + 2 comets (scatter) + 1 seraph (spray16)
+    wave(76, 13, () => this.enemyMgr.spawnWave([
+      this.shadeDef(W + 80,  340, 1460, 340, 'laser_cross', 3.2, 0),
+      this.shadeDef(W + 80,  740, 1460, 740, 'laser_cross', 3.2, 0.4),
+      this.cometDef(W + 80,  200, 1380, 200, 'scatter', 2.0, 0.7),
+      this.cometDef(W + 80,  880, 1380, 880, 'scatter', 2.0, 0.9),
+      this.seraphDef(W + 80, 540, 1520, 540, 'spray16', 3.0, 1.1),
+    ]));
+
+    // Wave 14 (t=82s): 3 comets (aimed) + 2 shades (helix) + 1 seraph (laser_aimed)
+    wave(82, 14, () => this.enemyMgr.spawnWave([
+      this.cometDef(W + 80,  180, 1400, 200, 'aimed', 1.8, 0),
+      this.cometDef(W + 80,  540, 1420, 540, 'aimed', 1.8, 0.25),
+      this.cometDef(W + 80,  900, 1400, 880, 'aimed', 1.8, 0.5),
+      this.shadeDef(W + 80,  360, 1480, 360, 'helix', 2.2, 0.7),
+      this.shadeDef(W + 80,  720, 1480, 720, 'helix', 2.2, 0.9),
+      this.seraphDef(W + 80, 540, 1520, 540, 'laser_aimed', 3.2, 1.1),
+    ]));
+
+    // ── ACT 4: CRESCENDO ────────────────────────────────────────────────
+    // Wave 15 (t=88s): 2 seraphs (spray16) + 3 comets (scatter)
+    wave(88, 15, () => this.enemyMgr.spawnWave([
+      this.seraphDef(W + 80, 300, 1500, 300, 'spray16', 2.6, 0),
+      this.seraphDef(W + 80, 780, 1500, 780, 'spray16', 2.6, 0.4),
+      this.cometDef(W + 80,  200, 1380, 200, 'scatter', 1.8, 0.7),
+      this.cometDef(W + 80,  540, 1400, 540, 'scatter', 1.8, 0.9),
+      this.cometDef(W + 80,  880, 1380, 880, 'scatter', 1.8, 1.1),
+    ]));
+
+    // Wave 16 (t=93s): 3 shades (laser_aimed) + 2 comets (burst3)
+    wave(93, 16, () => this.enemyMgr.spawnWave([
+      this.shadeDef(W + 80,  220, 1480, 240, 'laser_aimed', 2.8, 0),
+      this.shadeDef(W + 80,  540, 1500, 540, 'laser_aimed', 2.8, 0.3),
+      this.shadeDef(W + 80,  860, 1480, 840, 'laser_aimed', 2.8, 0.6),
+      this.cometDef(W + 80,  380, 1400, 380, 'burst3', 2.0, 0.8),
+      this.cometDef(W + 80,  700, 1400, 700, 'burst3', 2.0, 1.0),
+    ]));
+
+    // Wave 17 (t=98s): 2 seraphs (laser_fan) + 2 shades (helix)
+    wave(98, 17, () => this.enemyMgr.spawnWave([
+      this.seraphDef(W + 80, 340, 1500, 340, 'laser_fan', 3.2, 0),
+      this.seraphDef(W + 80, 740, 1500, 740, 'laser_fan', 3.2, 0.5),
+      this.shadeDef(W + 80,  440, 1440, 440, 'helix', 2.0, 0.8),
+      this.shadeDef(W + 80,  640, 1440, 640, 'helix', 2.0, 1.0),
+    ]));
+
+    // Wave 18 (t=103s): 2 shades (laser_cross) + 2 comets (scatter) + 2 seraphs (spray16)
+    wave(103, 18, () => this.enemyMgr.spawnWave([
+      this.shadeDef(W + 80,  280, 1460, 280, 'laser_cross', 3.0, 0),
+      this.shadeDef(W + 80,  800, 1460, 800, 'laser_cross', 3.0, 0.35),
+      this.cometDef(W + 80,  440, 1380, 440, 'scatter', 1.8, 0.6),
+      this.cometDef(W + 80,  640, 1380, 640, 'scatter', 1.8, 0.8),
+      this.seraphDef(W + 80, 340, 1520, 340, 'spray16', 2.6, 1.0),
+      this.seraphDef(W + 80, 740, 1520, 740, 'spray16', 2.6, 1.2),
+    ]));
+
+    // Wave 19 (t=108s): 3 seraphs (spray16) — triple tank challenge
+    wave(108, 19, () => this.enemyMgr.spawnWave([
+      this.seraphDef(W + 80, 260, 1500, 280, 'spray16', 2.6, 0),
+      this.seraphDef(W + 80, 540, 1520, 540, 'spray16', 2.6, 0.4),
+      this.seraphDef(W + 80, 820, 1500, 800, 'spray16', 2.6, 0.8),
+    ]));
+
+    // Wave 20 (t=113s): 2 shades (laser_aimed) + 3 comets (scatter) — final wave
+    wave(113, 20, () => this.enemyMgr.spawnWave([
+      this.shadeDef(W + 80,  300, 1480, 300, 'laser_aimed', 2.8, 0),
+      this.shadeDef(W + 80,  780, 1480, 780, 'laser_aimed', 2.8, 0.4),
+      this.cometDef(W + 80,  200, 1400, 200, 'scatter', 1.8, 0.7),
+      this.cometDef(W + 80,  540, 1420, 540, 'scatter', 1.8, 0.9),
+      this.cometDef(W + 80,  880, 1400, 880, 'scatter', 1.8, 1.1),
+    ]));
+  }
+
   private tickWaves(): void {
     while (this.nextWave < this.waveEvents.length && this.stageTimer >= this.waveEvents[this.nextWave][0]) {
       this.waveEvents[this.nextWave][1]();
@@ -1049,7 +1259,8 @@ export class GameScene extends Phaser.Scene {
 
   private enterMiniboss(): void {
     this.phase = 'miniboss';
-    const minibossLabel = this.stageId === 3 ? '\u26A0  SENTINEL  \u26A0'
+    const minibossLabel = this.stageId === 4 ? '\u26A0  HERALD  \u26A0'
+      : this.stageId === 3 ? '\u26A0  SENTINEL  \u26A0'
       : this.stageId === 2 ? '\u26A0  WARDEN  \u26A0' : '\u26A0  ELITE  \u26A0';
     this.hud.showMessage(minibossLabel, 2000, 0x55ddff, 56);
     sfx.bossWarning();
@@ -1058,7 +1269,13 @@ export class GameScene extends Phaser.Scene {
       this.eBullets.fire(x, y, vx, vy, sc, sc, tint);
     };
 
-    if (this.stageId === 3) {
+    if (this.stageId === 4) {
+      const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint, opts?) => {
+        this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint, opts);
+      };
+      this.miniboss = new Miniboss4(this, fireFn, laserFireFn);
+      this.bossBar.show('VOID HERALD');
+    } else if (this.stageId === 3) {
       const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint, opts?) => {
         this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint, opts);
       };
@@ -1075,7 +1292,8 @@ export class GameScene extends Phaser.Scene {
       this.bossBar.show('SHRINE GUARDIAN');
     }
 
-    const minibossScore = this.stageId === 3 ? BALANCE.stage3.miniboss.score
+    const minibossScore = this.stageId === 4 ? BALANCE.stage4.miniboss.score
+      : this.stageId === 3 ? BALANCE.stage3.miniboss.score
       : this.stageId === 2 ? BALANCE.stage2.miniboss.score : BALANCE.miniboss.score;
     this.miniboss.onDie = () => {
       this.bossBar.hide();
@@ -1083,7 +1301,8 @@ export class GameScene extends Phaser.Scene {
       this.burst(this.miniboss!.x, this.miniboss!.y, 24, 0x44ffee);
       this.spawnPickups(this.miniboss!.x, this.miniboss!.y, BALANCE.pickups.minibossDrops, 'power');
       this.addScore(minibossScore);
-      const defeatMsg = this.stageId === 3 ? 'SENTINEL DEFEATED'
+      const defeatMsg = this.stageId === 4 ? 'HERALD DEFEATED'
+        : this.stageId === 3 ? 'SENTINEL DEFEATED'
         : this.stageId === 2 ? 'WARDEN DEFEATED' : 'ELITE DEFEATED';
       this.hud.showMessage(defeatMsg, 2000, 0x44ffee, 48);
       this.laserPool.releaseAll();
@@ -1096,7 +1315,12 @@ export class GameScene extends Phaser.Scene {
       // More enemy waves during interlude
       this.time.delayedCall(1500, () => {
         if (this.phase !== 'interlude') return;
-        if (this.stageId === 3) {
+        if (this.stageId === 4) {
+          this.enemyMgr.spawnWave([
+            this.shadeDef(W + 80, 320, 1380, 320, 'aimed', 1.6),
+            this.shadeDef(W + 80, 760, 1380, 760, 'aimed', 1.6),
+          ]);
+        } else if (this.stageId === 3) {
           this.enemyMgr.spawnWave([
             this.gunnerDef(W + 80, 320, 1380, 320, 'aimed', 1.6),
             this.gunnerDef(W + 80, 760, 1380, 760, 'aimed', 1.6),
@@ -1159,8 +1383,22 @@ export class GameScene extends Phaser.Scene {
     { speaker: 'boss',   name: 'Rosalia',  text: 'Very well, little blossom. Let Eden\njudge whether you are worthy!' },
   ];
 
+  private static readonly DIALOGUE_LINES_S4: Array<{
+    speaker: 'player' | 'boss';
+    name: string;
+    text: string;
+  }> = [
+    { speaker: 'player', name: 'Kira',    text: 'The rift... it\'s opening wider.' },
+    { speaker: 'boss',   name: '???',     text: 'You dare approach the Celestial Rift?' },
+    { speaker: 'player', name: 'Kira',    text: 'I\'ll seal this rift — no matter what!' },
+    { speaker: 'boss',   name: 'Solaris', text: 'I am SOLARIS! The eternal flame that\nburns between worlds!' },
+    { speaker: 'player', name: 'Kira',    text: 'Your light won\'t blind me!' },
+    { speaker: 'boss',   name: 'Solaris', text: 'Then BURN with the stars!' },
+  ];
+
   private getDialogueLines() {
-    return this.stageId === 3 ? GameScene.DIALOGUE_LINES_S3
+    return this.stageId === 4 ? GameScene.DIALOGUE_LINES_S4
+      : this.stageId === 3 ? GameScene.DIALOGUE_LINES_S3
       : this.stageId === 2 ? GameScene.DIALOGUE_LINES_S2
       : GameScene.DIALOGUE_LINES_S1;
   }
@@ -1217,7 +1455,7 @@ export class GameScene extends Phaser.Scene {
     const bossFrameBorder = this.add.rectangle(PORT_R_X, PORT_Y, PORT_SIZE + 4, PORT_SIZE + 4, 0, 0)
       .setDepth(DEPTH.OVERLAY - 1)
       .setStrokeStyle(2, 0xff66cc, 1);
-    const bossPortraitKey = this.stageId === 3 ? 'portrait-boss3' : this.stageId === 2 ? 'portrait-boss2' : 'portrait-boss';
+    const bossPortraitKey = this.stageId === 4 ? 'portrait-boss4' : this.stageId === 3 ? 'portrait-boss3' : this.stageId === 2 ? 'portrait-boss2' : 'portrait-boss';
     const bossPortrait = this.add.image(PORT_R_X, PORT_Y, bossPortraitKey)
       .setDisplaySize(PORT_SIZE, PORT_SIZE)
       .setDepth(DEPTH.OVERLAY);
@@ -1365,7 +1603,8 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Warning flash banner — larger and more impactful
-    const warningText = this.stageId === 3 ? '\u26A1 SHATTERED BLOOM \u26A1'
+    const warningText = this.stageId === 4 ? '\u26A1 ETERNAL FLAME \u26A1'
+      : this.stageId === 3 ? '\u26A1 SHATTERED BLOOM \u26A1'
       : this.stageId === 2 ? '\u26A1 RIFT ENGINE \u26A1' : '!! BOSS APPROACHING !!';
     const banner = this.add.text(W / 2, H / 2, warningText, {
       fontFamily: FONT,
@@ -1399,7 +1638,13 @@ export class GameScene extends Phaser.Scene {
       this.bossEBullets.fire(x, y, vx, vy, sc, sc, tint);
     };
 
-    if (this.stageId === 3) {
+    if (this.stageId === 4) {
+      const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint, opts?) => {
+        this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint, opts);
+      };
+      this.boss = new Boss4(this, fireFn, laserFireFn);
+      this.bossBar.show('SOLARIS,  THE ETERNAL FLAME');
+    } else if (this.stageId === 3) {
       const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint, opts?) => {
         this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint, opts);
       };
@@ -1416,7 +1661,7 @@ export class GameScene extends Phaser.Scene {
       this.bossBar.show('AETHERIA,  BUTTERFLY DEITY');
     }
 
-    const phaseColor = this.stageId === 3 ? 0xff66cc : this.stageId === 2 ? 0x00ccaa : 0xff88cc;
+    const phaseColor = this.stageId === 4 ? 0xffcc00 : this.stageId === 3 ? 0xff66cc : this.stageId === 2 ? 0x00ccaa : 0xff88cc;
 
     this.boss.onPhaseChange = (phase: number) => {
       sfx.phaseChange();
@@ -1428,7 +1673,8 @@ export class GameScene extends Phaser.Scene {
       this.hud.showMessage(msgs[phase] ?? '', 1800, phaseColor, 60);
     };
 
-    const bossScore = this.stageId === 3 ? BALANCE.stage3.boss.score
+    const bossScore = this.stageId === 4 ? BALANCE.stage4.boss.score
+      : this.stageId === 3 ? BALANCE.stage3.boss.score
       : this.stageId === 2 ? BALANCE.stage2.boss.score : BALANCE.boss.score;
     this.boss.onDie = () => {
       this.bossBar.hide();
@@ -1719,6 +1965,39 @@ export class GameScene extends Phaser.Scene {
         for (let i = 0; i < 3; i++) {
           const a = spiralBase + (i / 3) * Math.PI * 2;
           this.eBullets.fire(ex, ey, Math.cos(a) * spd * 0.8, Math.sin(a) * spd * 0.8, 1, 1, 0xff66cc);
+        }
+        break;
+      }
+      case 'spray16': {
+        // Massive 16-bullet fan spray (~200°) — mini-boss level attack
+        const spread = Math.PI * 1.1;
+        const spd16 = getWaveBulletSpeed(this.currentWaveNum, this.stageId) * (this.stageId >= 4 ? 1.0 : 0.9);
+        for (let i = 0; i < 16; i++) {
+          const a = baseAngle - spread / 2 + (i / 15) * spread;
+          const sv = spd16 * (0.85 + Math.random() * 0.3);
+          this.eBullets.fire(ex, ey, Math.cos(a) * sv, Math.sin(a) * sv, 1, 1, 0xffcc00);
+        }
+        break;
+      }
+      case 'helix': {
+        // Double helix — two streams with oscillating aim offset
+        const spdHelix = getWaveBulletSpeed(this.currentWaveNum, this.stageId) * 0.9;
+        const t = this.stageTimer;
+        for (let i = 0; i < 2; i++) {
+          const rotOff = Math.sin(t * 4 + i * Math.PI) * 0.5;
+          const a = baseAngle + rotOff;
+          this.eBullets.fire(ex, ey, Math.cos(a) * spdHelix, Math.sin(a) * spdHelix, 0.9, 0.9, 0x8844ff);
+        }
+        break;
+      }
+      case 'scatter': {
+        // Tight random cluster burst — 6 bullets with random spread and speed variance
+        const spdScatter = getWaveBulletSpeed(this.currentWaveNum, this.stageId);
+        for (let i = 0; i < 6; i++) {
+          const aOff = (Math.random() - 0.5) * 0.7;
+          const sv = spdScatter * (0.7 + Math.random() * 0.5);
+          const a = baseAngle + aOff;
+          this.eBullets.fire(ex, ey, Math.cos(a) * sv, Math.sin(a) * sv, 0.8, 0.8, 0x00ddff);
         }
         break;
       }
@@ -2715,6 +2994,240 @@ export class GameScene extends Phaser.Scene {
       ctx.beginPath();
       ctx.moveTo(0, ly);
       ctx.lineTo(TW, ly);
+      ctx.stroke();
+    }
+
+    return cv;
+  }
+
+  // ─── STAGE 4 PARALLAX: Celestial Rift ──────────────────────────────────────
+
+  private buildStage4Parallax(): void {
+    // Far layer — cosmic nebula clouds with scattered stars
+    const farC = this.buildS4FarLayer();
+    this.textures.addCanvas('_bg_mt', farC);
+    this.bgMountains = this.add
+      .tileSprite(0, H, W, farC.height, '_bg_mt')
+      .setOrigin(0, 1)
+      .setDepth(DEPTH.BG_MID - 1);
+
+    // Mid layer — floating reality shards (angular crystal fragments)
+    const midC = this.buildS4MidLayer();
+    this.textures.addCanvas('_bg_bd', midC);
+    this.bgBuildings = this.add
+      .tileSprite(0, H, W, midC.height, '_bg_bd')
+      .setOrigin(0, 1)
+      .setDepth(DEPTH.BG_MID);
+
+    // Near layer — energy streams and bright star particles
+    const nearC = this.buildS4NearLayer();
+    this.textures.addCanvas('_bg_nr', nearC);
+    this.bgNear = this.add
+      .tileSprite(0, H, W, nearC.height, '_bg_nr')
+      .setOrigin(0, 1)
+      .setDepth(DEPTH.BG_NEAR - 1);
+  }
+
+  /** Far layer: cosmic nebula clouds — soft purple/indigo gradients with scattered star dots. */
+  private buildS4FarLayer(): HTMLCanvasElement {
+    const TW = 2048, TH = 440;
+    const cv = document.createElement('canvas');
+    cv.width = TW; cv.height = TH;
+    const ctx = cv.getContext('2d')!;
+    const rng = new Phaser.Math.RandomDataGenerator(['s4-far']);
+
+    // Nebula ridgeline profile
+    const waves: [number, number, number][] = [
+      [2,  TH * 0.32, rng.frac() * Math.PI * 2],
+      [4,  TH * 0.20, rng.frac() * Math.PI * 2],
+      [8,  TH * 0.10, rng.frac() * Math.PI * 2],
+    ];
+    const profile: number[] = [];
+    for (let x = 0; x < TW; x++) {
+      let elev = 0;
+      for (const [freq, amp, ph] of waves) {
+        elev += Math.max(0, Math.sin(x / TW * Math.PI * 2 * freq + ph)) * amp;
+      }
+      profile.push(TH - Phaser.Math.Clamp(elev, 0, TH * 0.85));
+    }
+
+    // Fill with deep cosmic indigo gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, TH);
+    grad.addColorStop(0,    'rgba(12,4,40,0)');
+    grad.addColorStop(0.20, 'rgba(16,6,50,0.70)');
+    grad.addColorStop(1,    '#080422');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.moveTo(0, TH);
+    for (let x = 0; x < TW; x++) ctx.lineTo(x, profile[x]);
+    ctx.lineTo(TW, TH); ctx.closePath(); ctx.fill();
+
+    // Nebula cloud patches — soft elliptical glows
+    for (let i = 0; i < 6; i++) {
+      const cx = rng.between(100, TW - 100);
+      const cy = profile[Math.min(cx, TW - 1)] + rng.between(-40, 60);
+      const rw = rng.between(80, 200);
+      const rh = rng.between(40, 100);
+      const nebGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rw);
+      nebGrad.addColorStop(0, 'rgba(60,20,120,0.15)');
+      nebGrad.addColorStop(0.5, 'rgba(40,10,80,0.08)');
+      nebGrad.addColorStop(1, 'rgba(20,4,40,0)');
+      ctx.fillStyle = nebGrad;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rw, rh, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Scattered star dots
+    for (let i = 0; i < 50; i++) {
+      const sx = rng.between(0, TW);
+      const sy = rng.between(0, TH);
+      const ss = rng.between(1, 3);
+      ctx.fillStyle = `rgba(200,180,255,${rng.realInRange(0.08, 0.25)})`;
+      ctx.fillRect(sx, sy, ss, ss);
+    }
+
+    return cv;
+  }
+
+  /** Mid layer: floating reality shards — angular crystal fragments in dark silhouette with faint cyan edges. */
+  private buildS4MidLayer(): HTMLCanvasElement {
+    const TW = 2048, TH = 280;
+    const cv = document.createElement('canvas');
+    cv.width = TW; cv.height = TH;
+    const ctx = cv.getContext('2d')!;
+    const rng = new Phaser.Math.RandomDataGenerator(['s4-mid']);
+
+    const profile = new Float32Array(TW).fill(TH);
+
+    // Angular crystal fragment structures
+    let bx = 0;
+    while (bx < TW) {
+      const bw = rng.between(40, 100);
+      const bh = rng.between(50, 160);
+      const by = TH - bh;
+      for (let i = bx; i < Math.min(bx + bw, TW); i++) profile[i] = by;
+
+      // Angular spike on top — reality shard
+      if (rng.frac() < 0.55 && bw > 50) {
+        const mid = bx + bw / 2;
+        const sh = rng.between(30, 90);
+        for (let i = bx; i < Math.min(bx + bw, TW); i++) {
+          const t = Math.abs(i - mid) / (bw * 0.4);
+          profile[i] = Math.min(profile[i], by - sh * Math.max(0, 1 - t * 1.5));
+        }
+      }
+
+      bx += bw + rng.between(30, 100);
+    }
+
+    // Clear edges for seamless tile
+    for (let i = 0; i < 20; i++) profile[i] = TH;
+    for (let i = TW - 20; i < TW; i++) profile[i] = TH;
+
+    // Fill with dark cosmic colour
+    const sGrad = ctx.createLinearGradient(0, 0, 0, TH);
+    sGrad.addColorStop(0, 'rgba(10,4,30,0)');
+    sGrad.addColorStop(0.4, 'rgba(10,4,30,0.7)');
+    sGrad.addColorStop(1, '#080422');
+    ctx.fillStyle = sGrad;
+    ctx.beginPath(); ctx.moveTo(0, TH);
+    for (let x = 0; x < TW; x++) ctx.lineTo(x, profile[x]);
+    ctx.lineTo(TW, TH); ctx.closePath(); ctx.fill();
+
+    // Faint cyan edge highlights on shard tops
+    ctx.strokeStyle = 'rgba(0,200,220,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 1; x < TW; x++) {
+      if (profile[x] < profile[x - 1] - 1) {
+        ctx.moveTo(x, profile[x]);
+        ctx.lineTo(x + 1, profile[x]);
+      }
+    }
+    ctx.stroke();
+
+    // Floating crystal fragment outlines
+    let fx = rng.between(150, 400);
+    while (fx < TW - 80) {
+      const fy = rng.between(30, TH - 100);
+      const fs = rng.between(8, 24);
+      const angle = rng.frac() * Math.PI;
+
+      ctx.strokeStyle = 'rgba(0,180,200,0.15)';
+      ctx.lineWidth = 1;
+      ctx.save();
+      ctx.translate(fx, fy);
+      ctx.rotate(angle);
+      // Diamond shape
+      ctx.beginPath();
+      ctx.moveTo(0, -fs);
+      ctx.lineTo(fs * 0.6, 0);
+      ctx.lineTo(0, fs);
+      ctx.lineTo(-fs * 0.6, 0);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+
+      fx += rng.between(250, 550);
+    }
+
+    return cv;
+  }
+
+  /** Near layer: energy streams — thin vertical glowing lines in cyan/gold + scattered bright star particles. */
+  private buildS4NearLayer(): HTMLCanvasElement {
+    const TW = 2048, TH = 210;
+    const cv = document.createElement('canvas');
+    cv.width = TW; cv.height = TH;
+    const ctx = cv.getContext('2d')!;
+    const rng = new Phaser.Math.RandomDataGenerator(['s4-near']);
+
+    // Ground strip
+    ctx.fillStyle = '#080422';
+    ctx.fillRect(0, TH - 44, TW, 44);
+
+    // Thin vertical energy stream lines
+    let lx = rng.between(60, 200);
+    while (lx < TW - 40) {
+      const lh = rng.between(60, 160);
+      const ly = TH - 44 - lh;
+      const isCyan = rng.frac() < 0.6;
+      const color = isCyan ? 'rgba(0,200,220,0.12)' : 'rgba(255,200,0,0.10)';
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(lx, TH - 44);
+      ctx.lineTo(lx, ly);
+      ctx.stroke();
+
+      // Small bright node at top
+      ctx.fillStyle = isCyan ? 'rgba(0,220,240,0.20)' : 'rgba(255,220,50,0.18)';
+      ctx.fillRect(lx - 2, ly - 2, 4, 4);
+
+      lx += rng.between(140, 380);
+    }
+
+    // Scattered bright star particles
+    for (let i = 0; i < 30; i++) {
+      const sx = rng.between(0, TW);
+      const sy = rng.between(10, TH - 50);
+      const ss = rng.between(1, 3);
+      const isBright = rng.frac() < 0.3;
+      ctx.fillStyle = isBright
+        ? `rgba(255,255,200,${rng.realInRange(0.15, 0.35)})`
+        : `rgba(150,200,255,${rng.realInRange(0.08, 0.20)})`;
+      ctx.fillRect(sx, sy, ss, ss);
+    }
+
+    // Faint horizontal energy wisps along the ground
+    for (let c = 0; c < 4; c++) {
+      const wy = TH - 44 + rng.between(4, 36);
+      ctx.strokeStyle = 'rgba(0,180,200,0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, wy);
+      ctx.lineTo(TW, wy);
       ctx.stroke();
     }
 
