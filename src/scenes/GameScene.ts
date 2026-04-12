@@ -97,6 +97,10 @@ export class GameScene extends Phaser.Scene {
     this.miniboss       = null;
     this.dialogueGroup  = [];
     this.dialogueLineIndex = 0;
+    this.apparition        = null;
+    this.apparitionBullets = null;
+    this.nextApparitionSpell = 0;
+    this.bossEBullets      = null;
 
     // Persist hi-score across scene restarts
     this.hiScore = Number(this.game.registry.get('hiScore') ?? 0);
@@ -1709,7 +1713,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private bossEBullets!: BulletPool;   // medium-sized pool for boss attacks
+  private bossEBullets: BulletPool | null = null;   // medium-sized pool for boss attacks
 
   private enterBoss(): void {
     this.phase = 'boss';
@@ -1720,7 +1724,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     const fireFn = (x: number, y: number, vx: number, vy: number, sc = 1, tint = 0xff88cc) => {
-      this.bossEBullets.fire(x, y, vx, vy, sc, sc, tint);
+      this.bossEBullets!.fire(x, y, vx, vy, sc, sc, tint);
     };
 
     if (this.stageId === 4) {
