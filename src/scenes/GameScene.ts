@@ -20,7 +20,7 @@ import { HUD }              from '../ui/HUD';
 import { BossBar }          from '../ui/BossBar';
 import { sfx }              from '../audio/SoundSynth';
 import { bgm }              from '../audio/BGMManager';
-import { Apparition, STAGE1_SPELLS } from '../systems/Apparition';
+import { Apparition, STAGE1_SPELLS, STAGE2_SPELLS, STAGE3_SPELLS, STAGE4_SPELLS } from '../systems/Apparition';
 import type { SpellCard } from '../systems/Apparition';
 
 type GamePhase = 'intro' | 'waves' | 'apparition' | 'miniboss' | 'interlude' | 'dialogue' | 'boss_warning' | 'boss' | 'clear' | 'over';
@@ -418,26 +418,29 @@ export class GameScene extends Phaser.Scene {
 
   private buildTimeline(): void {
     // Set up Harbinger apparition spells for each stage
-    this.apparitionSpells = STAGE1_SPELLS; // TODO: per-stage spells for stages 2-4
     this.nextApparitionSpell = 0;
 
     if (this.stageId === 4) {
-      this.apparitionSchedule = [5, 10, 15];  // after waves 5, 10, 15
+      this.apparitionSpells = STAGE4_SPELLS;
+      this.apparitionSchedule = [5, 10, 15];
       this.buildStage4Timeline();
       return;
     }
     if (this.stageId === 3) {
+      this.apparitionSpells = STAGE3_SPELLS;
       this.apparitionSchedule = [5, 10, 15];
       this.buildStage3Timeline();
       return;
     }
     if (this.stageId === 2) {
+      this.apparitionSpells = STAGE2_SPELLS;
       this.apparitionSchedule = [5, 10, 15];
       this.buildStage2Timeline();
       return;
     }
 
     // Stage 1: apparitions after waves 4, 9, 13, 17
+    this.apparitionSpells = STAGE1_SPELLS;
     this.apparitionSchedule = [4, 9, 13, 17];
 
     const wave = (t: number, waveNum: number, fn: () => void) => {
