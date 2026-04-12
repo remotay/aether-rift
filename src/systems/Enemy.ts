@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
 import { W, H, DEPTH } from '../constants';
+import type { LaserFireFn } from './Laser';
+
+export type { LaserFireFn };
 
 export type EnemyFireFn = (ex: number, ey: number, angle: number, pattern: EnemyPattern) => void;
 
-/** Callback for spawning a laser beam (x, y, angle, width, chargeDur, sustainDur, colour). */
-export type LaserFireFn = (
-  x: number, y: number, angle: number,
-  width: number, chargeDur: number, sustainDur: number, colour: number,
-) => void;
+/** Monotonic ID counter for unique enemy laser ownership. */
+let nextEnemyId = 0;
 
 export type EnemyPattern =
   | 'aimed'       // single aimed shot
@@ -24,10 +24,13 @@ export type EnemyPattern =
   | 'laser_sweep' // laser that sweeps 45 degrees
   | 'laser_cross' // two perpendicular lasers
   | 'laser_fan'   // three lasers in 60-degree spread
+  | 'burst3'      // 3-round rapid burst
+  | 'split'       // forward-then-split
+  | 'spiral3'     // 3-shot spinning spiral
   | 'none';
 
 export interface EnemyDef {
-  type:      'fairy' | 'soul' | 'wisp' | 'phantom' | 'knight' | 'bat' | 'drone';
+  type:      'fairy' | 'soul' | 'wisp' | 'phantom' | 'knight' | 'bat' | 'drone' | 'gunner' | 'bloom' | 'prism';
   x:         number;
   y:         number;
   targetX:   number;
@@ -102,6 +105,21 @@ const ENEMY_CONFIG: Record<EnemyDef['type'], EnemyTypeConfig> = {
     scale: 0.05,
     anim: { ampX: 2, ampY: 2, ampRot: 360, freqX: 0.5, freqY: 0.5, freqRot: 3.0, phase: 0 },
   },
+  gunner: {
+    bodyKey: 'enemy-gunner-body', animKey: 'enemy-gunner-wings', animBehind: true,
+    scale: 0.06,
+    anim: { ampX: 3, ampY: 5, ampRot: 4, freqX: 3.5, freqY: 4.5, freqRot: 3.0, phase: 0.2 },
+  },
+  bloom: {
+    bodyKey: 'enemy-bloom-body', animKey: 'enemy-bloom-petals', animBehind: true,
+    scale: 0.07,
+    anim: { ampX: 8, ampY: 10, ampRot: 6, freqX: 1.0, freqY: 0.8, freqRot: 0.5, phase: 0.4 },
+  },
+  prism: {
+    bodyKey: 'enemy-prism-body', animKey: 'enemy-prism-crystal', animBehind: false,
+    scale: 0.06,
+    anim: { ampX: 5, ampY: 4, ampRot: 360, freqX: 1.5, freqY: 1.2, freqRot: 1.8, phase: 0.6 },
+  },
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -121,6 +139,9 @@ export class Enemy {
   maxHp: number;
   alive = true;
   readonly score: number;
+
+  /** Unique ID used to track laser ownership so we can cancel on death. */
+  readonly laserOwnerId: string;
 
   readonly hW: number;
   readonly hH: number;
@@ -164,6 +185,7 @@ export class Enemy {
     this.hp         = def.hp;
     this.maxHp      = def.hp;
     this.score      = def.score;
+    this.laserOwnerId = `enemy_${nextEnemyId++}`;
     this.hoverTimer = def.hoverDur;
     this.behavior   = def.behavior ?? 'hover';
     this.config     = ENEMY_CONFIG[def.type];
@@ -199,6 +221,9 @@ export class Enemy {
       knight:  [38, 38],
       bat:     [24, 24],
       drone:   [30, 30],
+      gunner:  [32, 32],
+      bloom:   [40, 40],
+      prism:   [34, 34],
     };
     [this.hW, this.hH] = hbMap[def.type];
 
@@ -397,31 +422,32 @@ export class Enemy {
     const pattern = this.def.pattern;
     const angle = Math.atan2(py - ey, px - ex);
 
+    const oid = { ownerId: this.laserOwnerId };
+
     switch (pattern) {
       case 'laser_aimed': {
         // Single laser aimed at player
-        laserFn?.(ex, ey, angle, 12, 1.0, 2.0, 0x00ccaa);
+        laserFn?.(ex, ey, angle, 10, 1.0, 1.6, 0x00ccaa, oid);
         break;
       }
       case 'laser_sweep': {
-        // Laser that sweeps 45 degrees
-        const baseAngle = angle;
-        laserFn?.(ex, ey, baseAngle - 0.4, 14, 0.8, 2.5, 0x00ccaa);
-        // Fire additional lasers at offset angles after delays
-        // (the sweep effect will be handled by the scene's laser pool)
+        // Single rotating laser — sweeps 45° during active phase
+        // rotSpeed: 0.4 rad over 2.0s active = 0.2 rad/s
+        laserFn?.(ex, ey, angle - 0.2, 10, 0.8, 2.0, 0x00ccaa,
+          { ownerId: this.laserOwnerId, rotSpeed: 0.2 });
         break;
       }
       case 'laser_cross': {
         // Two perpendicular lasers
-        laserFn?.(ex, ey, angle, 12, 1.0, 2.0, 0x00ccaa);
-        laserFn?.(ex, ey, angle + Math.PI / 2, 12, 1.0, 2.0, 0x00ccaa);
+        laserFn?.(ex, ey, angle, 10, 1.0, 1.6, 0x00ccaa, oid);
+        laserFn?.(ex, ey, angle + Math.PI / 2, 10, 1.0, 1.6, 0x00ccaa, oid);
         break;
       }
       case 'laser_fan': {
         // Three lasers in 60-degree spread
-        laserFn?.(ex, ey, angle - 0.52, 10, 0.8, 1.8, 0x00ccaa);
-        laserFn?.(ex, ey, angle, 10, 0.8, 1.8, 0x00ccaa);
-        laserFn?.(ex, ey, angle + 0.52, 10, 0.8, 1.8, 0x00ccaa);
+        laserFn?.(ex, ey, angle - 0.52, 8, 0.8, 1.5, 0x00ccaa, oid);
+        laserFn?.(ex, ey, angle, 8, 0.8, 1.5, 0x00ccaa, oid);
+        laserFn?.(ex, ey, angle + 0.52, 8, 0.8, 1.5, 0x00ccaa, oid);
         break;
       }
       default:

@@ -3,11 +3,12 @@ import { W, H, DEPTH, FONT } from '../constants';
 import { sfx } from '../audio/SoundSynth';
 
 /** Maximum stage number currently in the game. */
-const FINAL_STAGE = 2;
+const FINAL_STAGE = 3;
 
 const STAGE_SUBTITLES: Record<number, string> = {
   1: '— THRESHOLD OF ETERNITY CONQUERED —',
   2: '— AETHER RIFT SEALED —',
+  3: '— SHATTERED EDEN RESTORED —',
 };
 
 export class ClearScene extends Phaser.Scene {
@@ -36,7 +37,7 @@ export class ClearScene extends Phaser.Scene {
     sfx.stageClear();
 
     // Stage clear banner
-    const stageLabels: Record<number, string> = { 1: 'STAGE I  CLEAR', 2: 'STAGE II  CLEAR' };
+    const stageLabels: Record<number, string> = { 1: 'STAGE I  CLEAR', 2: 'STAGE II  CLEAR', 3: 'STAGE III  CLEAR' };
     const bannerText = stageLabels[stageId] ?? 'STAGE CLEAR';
     const banner = this.add.text(W / 2, H / 2 - 220, bannerText, {
       fontFamily: FONT,
@@ -89,7 +90,7 @@ export class ClearScene extends Phaser.Scene {
     // ── Action prompts ─────────────────────────────────────────────────────
     if (canContinue) {
       // Primary: continue to next stage
-      const nextStageLabels: Record<number, string> = { 2: 'STAGE II' };
+      const nextStageLabels: Record<number, string> = { 2: 'STAGE II', 3: 'STAGE III' };
       const nextLabel = nextStageLabels[stageId + 1] ?? `STAGE ${stageId + 1}`;
       const promptContinue = this.add.text(W / 2, H / 2 + 248, `PRESS  Z  TO CONTINUE TO ${nextLabel}`, {
         fontFamily: FONT,
@@ -120,8 +121,9 @@ export class ClearScene extends Phaser.Scene {
 
         kb.addKey(Phaser.Input.Keyboard.KeyCodes.Z).once('down', () => {
           sfx.uiConfirm();
-          // Mark stage 1 as cleared so title scene can reflect it
+          // Mark stages as cleared so title scene can reflect it
           this.registry.set('stage1Cleared', true);
+          if (stageId >= 2) this.registry.set('stage2Cleared', true);
           this.cameras.main.fadeOut(400, 0, 0, 0);
           this.time.delayedCall(420, () => {
             this.scene.start('GameScene', { stage: stageId + 1 });
@@ -131,6 +133,7 @@ export class ClearScene extends Phaser.Scene {
         kb.addKey(Phaser.Input.Keyboard.KeyCodes.X).once('down', () => {
           sfx.uiCancel();
           this.registry.set('stage1Cleared', true);
+          if (stageId >= 2) this.registry.set('stage2Cleared', true);
           this.cameras.main.fadeOut(400, 0, 0, 0);
           this.time.delayedCall(420, () => this.scene.start('TitleScene'));
         });

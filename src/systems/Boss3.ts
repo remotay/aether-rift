@@ -6,12 +6,13 @@ import type { LaserFireFn } from './Laser';
 
 export type { LaserFireFn };
 
-const B2  = BALANCE.stage2.boss;
-const MB2 = BALANCE.stage2.miniboss;
+const B3  = BALANCE.stage3.boss;
+const MB3 = BALANCE.stage3.miniboss;
 const TWO_PI = Math.PI * 2;
 
-// ─── VFX helpers (mirrored from Boss.ts) ─────────────────────────────────────
-function shockwave(scene: Phaser.Scene, x: number, y: number, color = 0x00ccaa, maxR = 260): void {
+// ─── VFX helpers ─────────────────────────────────────────────────────────────
+
+function shockwave(scene: Phaser.Scene, x: number, y: number, color = 0xff66cc, maxR = 260): void {
   const ring = scene.add.graphics().setDepth(DEPTH.FX);
   const tween = { progress: 0 };
   scene.tweens.add({
@@ -31,7 +32,7 @@ function shockwave(scene: Phaser.Scene, x: number, y: number, color = 0x00ccaa, 
   });
 }
 
-function pulsingRing(scene: Phaser.Scene, getX: () => number, getY: () => number, color = 0x88ffee): Phaser.GameObjects.Graphics {
+function pulsingRing(scene: Phaser.Scene, getX: () => number, getY: () => number, color = 0xff99dd): Phaser.GameObjects.Graphics {
   const gfx = scene.add.graphics().setDepth(DEPTH.FX);
   const state = { scale: 1, alpha: 0.7 };
   scene.tweens.add({
@@ -56,14 +57,15 @@ function pulsingRing(scene: Phaser.Scene, getX: () => number, getY: () => number
 }
 
 // ─── Attack helpers ──────────────────────────────────────────────────────────
-function ringB(entity: { x: number; y: number }, fire: BossFireFn, count: number, speed: number, offset = 0, sc = 1, tint = 0x00ccaa): void {
+
+function ringB(entity: { x: number; y: number }, fire: BossFireFn, count: number, speed: number, offset = 0, sc = 1, tint = 0xff66cc): void {
   for (let i = 0; i < count; i++) {
     const a = (i / count) * TWO_PI + offset;
     fire(entity.x, entity.y, Math.cos(a) * speed, Math.sin(a) * speed, sc, tint);
   }
 }
 
-function aimFanB(entity: { x: number; y: number }, fire: BossFireFn, px: number, py: number, count: number, spread: number, speed: number, tint = 0xff6600): void {
+function aimFanB(entity: { x: number; y: number }, fire: BossFireFn, px: number, py: number, count: number, spread: number, speed: number, tint = 0x88ccff): void {
   const base = Math.atan2(py - entity.y, px - entity.x);
   const step = count > 1 ? spread / (count - 1) : 0;
   for (let i = 0; i < count; i++) {
@@ -72,50 +74,50 @@ function aimFanB(entity: { x: number; y: number }, fire: BossFireFn, px: number,
   }
 }
 
-// ─── Boss2 attack types ──────────────────────────────────────────────────────
-type Boss2Phase = 1 | 2 | 3;
+// ─── Boss3 attack types ──────────────────────────────────────────────────────
+type Boss3Phase = 1 | 2 | 3;
 type AttackState = 'idle' | 'telegraph' | 'firing' | 'pause';
 
-interface Attack2 {
+interface Attack3 {
   name:      string;
   telegraph: number;
-  execute:   (b: Boss2, fire: BossFireFn, laserFire: LaserFireFn, px: number, py: number) => void;
+  execute:   (b: Boss3, fire: BossFireFn, laserFire: LaserFireFn, px: number, py: number) => void;
   pause:     number;
 }
 
-// ─── Phase 1 attacks: "Calibration" ──────────────────────────────────────────
-const P1 = B2.phase1speed;
+// ─── Phase 1 attacks: "Awakening" ────────────────────────────────────────────
+const P1 = B3.phase1speed;
 
-const BOSS2_PHASE1: Attack2[] = [
+const BOSS3_PHASE1: Attack3[] = [
   {
-    name: 'Gear Rings',
-    telegraph: B2.phase1telegraph,
+    name: 'Petal Rings',
+    telegraph: B3.phase1telegraph,
     execute(b, fire) {
-      // Two concentric rings: 16-outer fast, 12-inner slow, offset half-step
-      ringB(b, fire, 16, P1 * 1.0, 0, 1, 0x00ccaa);
-      ringB(b, fire, 12, P1 * 0.7, Math.PI / 12, 0.9, 0x00ccaa);
+      // Two concentric rings: 14 outer rose pink, 10 inner crystal blue, offset half-step
+      ringB(b, fire, 14, P1 * 1.0, 0, 1, 0xff66cc);
+      ringB(b, fire, 10, P1 * 0.7, Math.PI / 10, 0.9, 0x88ccff);
     },
-    pause: B2.phase1pause,
+    pause: B3.phase1pause,
   },
   {
-    name: 'Conduit Stream',
-    telegraph: B2.phase1telegraph,
+    name: 'Vine Stream',
+    telegraph: B3.phase1telegraph,
     execute(b, fire, _lf, px, py) {
-      // Aimed fan of 5, 3 volleys at 450ms
+      // Aimed fan of 5, 3 volleys at 400ms
       let volley = 0;
       const shoot = () => {
         if (!b.alive) return;
-        aimFanB(b, fire, px, py, 5, Math.PI / 4, P1 * 0.9, 0xff6600);
+        aimFanB(b, fire, px, py, 5, Math.PI / 4, P1 * 0.9, 0x88ccff);
         volley++;
-        if (volley < 3) b.scene.time.delayedCall(450, shoot);
+        if (volley < 3) b.scene.time.delayedCall(400, shoot);
       };
       shoot();
     },
-    pause: B2.phase1pause,
+    pause: B3.phase1pause,
   },
   {
-    name: 'Piston Barrage',
-    telegraph: B2.phase1telegraph,
+    name: 'Thorn Barrage',
+    telegraph: B3.phase1telegraph,
     execute(b, fire) {
       // Curtain of 5 columns moving left
       let rows = 0;
@@ -123,182 +125,207 @@ const BOSS2_PHASE1: Attack2[] = [
         if (!b.alive) return;
         for (let col = 0; col < 5; col++) {
           const oy = -160 + col * 80;
-          fire(b.x, b.y + oy, -P1 * 0.95, 0, 1, 0x00ccaa);
+          fire(b.x, b.y + oy, -P1 * 0.95, 0, 1, 0xff66cc);
         }
         rows++;
         if (rows < 6) b.scene.time.delayedCall(180, shoot);
       };
       shoot();
     },
-    pause: B2.phase1pause,
+    pause: B3.phase1pause,
   },
   {
     name: 'Tracer Laser',
-    telegraph: B2.phase1telegraph,
+    telegraph: B3.phase1telegraph,
     execute(b, _fire, laserFire, px, py) {
-      // Single aimed laser — first laser in the fight
+      // Single aimed laser -- first laser in the fight
       const angle = Math.atan2(py - b.y, px - b.x);
-      laserFire(b.x, b.y, angle, 12, 1.2, 2.0, 0x00ccaa);
+      laserFire(b.x, b.y, angle, 12, 1.2, 2.0, 0xff66cc);
     },
-    pause: B2.phase1pause + 0.3,
+    pause: B3.phase1pause + 0.3,
   },
   {
-    name: '"Rift Pulse"',
-    telegraph: B2.phase1telegraph + 0.2,
-    execute(b, fire, _lf, px, py) {
-      // Spell card: alternating ring16 + aimed3, 8 steps at 350ms
-      let step = 0;
-      const shoot = () => {
+    name: '"Garden Waltz"',
+    telegraph: B3.phase1telegraph + 0.2,
+    execute(b, fire, laserFire, px, py) {
+      // Spell card: single rotating laser sweeps 180° over 3s + ring bursts
+      const startAngle = Math.PI * 0.5;
+      const sweepRange = Math.PI;
+      const sweepDur   = 3.0;
+      const rotSpeed   = -sweepRange / sweepDur;
+
+      laserFire(b.x, b.y, startAngle, 18, 0.6, sweepDur, 0xff66cc,
+        { ownerId: 'boss3', rotSpeed });
+
+      // Ring bursts during sweep
+      let ringStep = 0;
+      const ringShoot = () => {
         if (!b.alive) return;
-        if (step % 2 === 0) {
-          ringB(b, fire, 16, P1 * 0.85, step * 0.2, 1, 0x00ccaa);
-        } else {
-          aimFanB(b, fire, px, py, 3, Math.PI / 5, P1 * 0.95, 0xff6600);
-        }
-        step++;
-        if (step < 8) b.scene.time.delayedCall(350, shoot);
+        ringB(b, fire, 10, P1 * 0.8, ringStep * 0.3, 1, 0x88ccff);
+        ringStep++;
+        if (ringStep < 6) b.scene.time.delayedCall(500, ringShoot);
       };
-      shoot();
+      b.scene.time.delayedCall(800, ringShoot);
+
+      // Aimed volleys
+      let aimStep = 0;
+      const aimShoot = () => {
+        if (!b.alive) return;
+        aimFanB(b, fire, px, py, 3, Math.PI / 5, P1 * 0.85, 0x88ccff);
+        aimStep++;
+        if (aimStep < 4) b.scene.time.delayedCall(600, aimShoot);
+      };
+      b.scene.time.delayedCall(1000, aimShoot);
     },
-    pause: B2.phase1pause + 0.5,
+    pause: B3.phase1pause + 0.5,
   },
 ];
 
-// ─── Phase 2 attacks: "Overclock" ────────────────────────────────────────────
-const P2 = B2.phase2speed;
+// ─── Phase 2 attacks: "Corruption" ───────────────────────────────────────────
+const P2 = B3.phase2speed;
 
-const BOSS2_PHASE2: Attack2[] = [
+const BOSS3_PHASE2: Attack3[] = [
   {
     name: 'Double Ring',
-    telegraph: B2.phase2telegraph,
+    telegraph: B3.phase2telegraph,
     execute(b, fire) {
-      ringB(b, fire, 22, P2 * 1.0, 0, 1.1, 0x00ccaa);
-      ringB(b, fire, 22, P2 * 1.0, Math.PI / 22, 1.1, 0x009988);
+      ringB(b, fire, 22, P2 * 1.0, 0, 1.1, 0xff66cc);
+      ringB(b, fire, 22, P2 * 1.0, Math.PI / 22, 1.1, 0x88ccff);
     },
-    pause: B2.phase2pause,
+    pause: B3.phase2pause,
   },
   {
     name: 'Cross Laser',
-    telegraph: B2.phase2telegraph,
+    telegraph: B3.phase2telegraph,
     execute(b, _fire, laserFire, px, py) {
       // Two lasers at 90-degree angles, player-aimed
       const base = Math.atan2(py - b.y, px - b.x);
-      laserFire(b.x, b.y, base + Math.PI / 4, 16, 0.8, 2.5, 0x00ccaa);
-      laserFire(b.x, b.y, base - Math.PI / 4, 16, 0.8, 2.5, 0xff6600);
+      laserFire(b.x, b.y, base + Math.PI / 4, 16, 0.8, 2.5, 0xff66cc);
+      laserFire(b.x, b.y, base - Math.PI / 4, 16, 0.8, 2.5, 0x88ccff);
     },
-    pause: B2.phase2pause + 0.2,
+    pause: B3.phase2pause + 0.2,
   },
   {
     name: 'Rapid Fan',
-    telegraph: B2.phase2telegraph,
+    telegraph: B3.phase2telegraph,
     execute(b, fire, _lf, px, py) {
       // Aimed 9-shot fan, 5 volleys at 280ms
       let volley = 0;
       const shoot = () => {
         if (!b.alive) return;
-        aimFanB(b, fire, px, py, 9, Math.PI / 3, P2 * 0.95, 0xff6600);
+        aimFanB(b, fire, px, py, 9, Math.PI / 3, P2 * 0.95, 0x88ccff);
         volley++;
         if (volley < 5) b.scene.time.delayedCall(280, shoot);
       };
       shoot();
     },
-    pause: B2.phase2pause,
+    pause: B3.phase2pause,
   },
   {
-    name: 'Spiral Barrage',
-    telegraph: B2.phase2telegraph,
+    name: 'Spiral Thorns',
+    telegraph: B3.phase2telegraph,
     execute(b, fire) {
       // Twin counter-rotating spirals, 30 shots each
       let t = 0;
       const shoot = () => {
         if (!b.alive) return;
         const a = t * 0.42;
-        fire(b.x, b.y, Math.cos(a) * P2 * 1.0, Math.sin(a) * P2 * 1.0, 1, 0x00ccaa);
-        fire(b.x, b.y, Math.cos(-a + Math.PI) * P2 * 1.0, Math.sin(-a + Math.PI) * P2 * 1.0, 1, 0x009988);
+        fire(b.x, b.y, Math.cos(a) * P2 * 1.0, Math.sin(a) * P2 * 1.0, 1, 0xff66cc);
+        fire(b.x, b.y, Math.cos(-a + Math.PI) * P2 * 1.0, Math.sin(-a + Math.PI) * P2 * 1.0, 1, 0x88ccff);
         t++;
         if (t < 30) b.scene.time.delayedCall(55, shoot);
       };
       shoot();
     },
-    pause: B2.phase2pause,
+    pause: B3.phase2pause,
   },
   {
-    name: '"Machina Waltz"',
-    telegraph: B2.phase2telegraph + 0.15,
-    execute(b, fire, laserFire, _px, _py) {
-      // Spell card: single rotating laser sweeps 180° over 3s + ring10 bursts
-      const startAngle = Math.PI * 0.5;      // start pointing down
-      const sweepRange = Math.PI;             // 180° total sweep
-      const sweepDur   = 3.0;                 // seconds active
-      const rotSpeed   = -sweepRange / sweepDur; // negative = CW (down→up)
+    name: '"Withered Rose"',
+    telegraph: B3.phase2telegraph + 0.15,
+    execute(b, fire, laserFire, px, py) {
+      // Spell card: single rotating laser 180° sweep + ring10 + aimed5
+      const startAngle = Math.PI * 0.5;
+      const sweepRange = Math.PI;
+      const sweepDur   = 3.0;
+      const rotSpeed   = -sweepRange / sweepDur;
 
-      laserFire(b.x, b.y, startAngle, 18, 0.6, sweepDur, 0x00ccaa,
-        { ownerId: 'boss2', rotSpeed });
+      laserFire(b.x, b.y, startAngle, 20, 0.5, sweepDur, 0xff66cc,
+        { ownerId: 'boss3', rotSpeed });
 
-      // Ring bursts during sweep
+      // Ring10 bursts during sweep
       let ringStep = 0;
       const ringShoot = () => {
         if (!b.alive) return;
-        ringB(b, fire, 10, P2 * 0.8, ringStep * 0.3, 1, 0xff6600);
+        ringB(b, fire, 10, P2 * 0.8, ringStep * 0.3, 1, 0x88ccff);
         ringStep++;
         if (ringStep < 6) b.scene.time.delayedCall(500, ringShoot);
       };
-      b.scene.time.delayedCall(800, ringShoot);
+      b.scene.time.delayedCall(700, ringShoot);
+
+      // Aimed5 during sweep
+      let aimStep = 0;
+      const aimShoot = () => {
+        if (!b.alive) return;
+        aimFanB(b, fire, px, py, 5, Math.PI / 4, P2 * 1.0, 0x88ccff);
+        aimStep++;
+        if (aimStep < 5) b.scene.time.delayedCall(500, aimShoot);
+      };
+      b.scene.time.delayedCall(800, aimShoot);
     },
-    pause: B2.phase2pause + 0.4,
+    pause: B3.phase2pause + 0.4,
   },
 ];
 
-// ─── Phase 3 attacks: "Meltdown" ─────────────────────────────────────────────
-const P3 = B2.phase3speed;
+// ─── Phase 3 attacks: "Shattered Bloom" ──────────────────────────────────────
+const P3 = B3.phase3speed;
 
-const BOSS2_PHASE3: Attack2[] = [
+const BOSS3_PHASE3: Attack3[] = [
   {
     name: 'Annihilation Ring',
-    telegraph: B2.phase3telegraph,
+    telegraph: B3.phase3telegraph,
     execute(b, fire, _lf, px, py) {
       // 30-ring + aimed 8-fan overlay
-      ringB(b, fire, 30, P3 * 1.0, 0, 1.2, 0x00ccaa);
-      aimFanB(b, fire, px, py, 8, Math.PI / 2, P3 * 1.1, 0xff6600);
+      ringB(b, fire, 30, P3 * 1.0, 0, 1.2, 0xff66cc);
+      aimFanB(b, fire, px, py, 8, Math.PI / 2, P3 * 1.1, 0x88ccff);
     },
-    pause: B2.phase3pause,
+    pause: B3.phase3pause,
   },
   {
     name: 'Triple Laser',
-    telegraph: B2.phase3telegraph,
+    telegraph: B3.phase3telegraph,
     execute(b, _fire, laserFire, px, py) {
       // Three lasers in 120-deg spread, player-aimed center
       const base = Math.atan2(py - b.y, px - b.x);
       const spread = (2 * Math.PI) / 3;
-      laserFire(b.x, b.y, base, 16, 0.6, 2.0, 0x00ccaa);
-      laserFire(b.x, b.y, base + spread * 0.25, 14, 0.6, 2.0, 0xff6600);
-      laserFire(b.x, b.y, base - spread * 0.25, 14, 0.6, 2.0, 0xff6600);
+      laserFire(b.x, b.y, base, 16, 0.7, 2.0, 0xff66cc);
+      laserFire(b.x, b.y, base + spread * 0.25, 14, 0.7, 2.0, 0x88ccff);
+      laserFire(b.x, b.y, base - spread * 0.25, 14, 0.7, 2.0, 0x88ccff);
     },
-    pause: B2.phase3pause + 0.15,
+    pause: B3.phase3pause + 0.15,
   },
   {
     name: 'Cascade Storm',
-    telegraph: B2.phase3telegraph,
+    telegraph: B3.phase3telegraph,
     execute(b, fire, _lf, px, py) {
       // Aimed9 + ring10 + spiral, 6 steps at 240ms
       let step = 0;
       const shoot = () => {
         if (!b.alive) return;
-        aimFanB(b, fire, px, py, 9, Math.PI / 2.5, P3 * 1.05, 0xff6600);
-        ringB(b, fire, 10, P3 * 0.8, step * 0.25, 0.9, 0x00ccaa);
+        aimFanB(b, fire, px, py, 9, Math.PI / 2.5, P3 * 1.05, 0x88ccff);
+        ringB(b, fire, 10, P3 * 0.8, step * 0.25, 0.9, 0xff66cc);
         const a = step * 0.55;
-        fire(b.x, b.y, Math.cos(a) * P3 * 0.9, Math.sin(a) * P3 * 0.9, 1, 0x009988);
-        fire(b.x, b.y, Math.cos(a + Math.PI) * P3 * 0.9, Math.sin(a + Math.PI) * P3 * 0.9, 1, 0x009988);
+        fire(b.x, b.y, Math.cos(a) * P3 * 0.9, Math.sin(a) * P3 * 0.9, 1, 0xff66cc);
+        fire(b.x, b.y, Math.cos(a + Math.PI) * P3 * 0.9, Math.sin(a + Math.PI) * P3 * 0.9, 1, 0xff66cc);
         step++;
         if (step < 6) b.scene.time.delayedCall(240, shoot);
       };
       shoot();
     },
-    pause: B2.phase3pause,
+    pause: B3.phase3pause,
   },
   {
     name: 'Convergence',
-    telegraph: B2.phase3telegraph,
+    telegraph: B3.phase3telegraph,
     execute(b, fire, _lf, px, py) {
       // Top/bottom curtains converging + aimed pairs
       let step = 0;
@@ -306,39 +333,39 @@ const BOSS2_PHASE3: Attack2[] = [
         if (!b.alive) return;
         const yTop = 100 + step * 30;
         const yBot = H - 100 - step * 30;
-        fire(b.x, yTop, -P3 * 0.9, P3 * 0.2, 1, 0x00ccaa);
-        fire(b.x, yBot, -P3 * 0.9, -P3 * 0.2, 1, 0x00ccaa);
-        fire(b.x - 40, yTop + 40, -P3 * 0.85, P3 * 0.15, 0.8, 0x009988);
-        fire(b.x - 40, yBot - 40, -P3 * 0.85, -P3 * 0.15, 0.8, 0x009988);
+        fire(b.x, yTop, -P3 * 0.9, P3 * 0.2, 1, 0xff66cc);
+        fire(b.x, yBot, -P3 * 0.9, -P3 * 0.2, 1, 0xff66cc);
+        fire(b.x - 40, yTop + 40, -P3 * 0.85, P3 * 0.15, 0.8, 0x88ccff);
+        fire(b.x - 40, yBot - 40, -P3 * 0.85, -P3 * 0.15, 0.8, 0x88ccff);
         // Aimed pair every other step
         if (step % 2 === 0) {
           const base = Math.atan2(py - b.y, px - b.x);
-          fire(b.x, b.y, Math.cos(base + 0.15) * P3 * 1.0, Math.sin(base + 0.15) * P3 * 1.0, 1, 0xff6600);
-          fire(b.x, b.y, Math.cos(base - 0.15) * P3 * 1.0, Math.sin(base - 0.15) * P3 * 1.0, 1, 0xff6600);
+          fire(b.x, b.y, Math.cos(base + 0.15) * P3 * 1.0, Math.sin(base + 0.15) * P3 * 1.0, 1, 0x88ccff);
+          fire(b.x, b.y, Math.cos(base - 0.15) * P3 * 1.0, Math.sin(base - 0.15) * P3 * 1.0, 1, 0x88ccff);
         }
         step++;
         if (step < 14) b.scene.time.delayedCall(90, shoot);
       };
       shoot();
     },
-    pause: B2.phase3pause,
+    pause: B3.phase3pause,
   },
   {
-    name: '"Rift Annihilation"',
-    telegraph: B2.phase3telegraph + 0.15,
+    name: '"Eden\'s End"',
+    telegraph: B3.phase3telegraph + 0.15,
     execute(b, fire, laserFire, px, py) {
-      // Grand finale: single rotating laser does full 360° over 4s
+      // Grand finale: single rotating laser full 360° over 4s
       const sweepDur = 4.0;
-      const rotSpeed  = TWO_PI / sweepDur; // full rotation CW
+      const rotSpeed  = TWO_PI / sweepDur;
 
-      laserFire(b.x, b.y, 0, 22, 0.5, sweepDur, 0xff4400,
-        { ownerId: 'boss2', rotSpeed });
+      laserFire(b.x, b.y, 0, 22, 0.5, sweepDur, 0xff44cc,
+        { ownerId: 'boss3', rotSpeed });
 
       // Ring14 every 400ms
       let ringStep = 0;
       const ringShoot = () => {
         if (!b.alive) return;
-        ringB(b, fire, 14, P3 * 0.85, ringStep * 0.22, 1.1, 0x00ccaa);
+        ringB(b, fire, 14, P3 * 0.85, ringStep * 0.22, 1.1, 0xff66cc);
         ringStep++;
         if (ringStep < 10) b.scene.time.delayedCall(400, ringShoot);
       };
@@ -348,23 +375,23 @@ const BOSS2_PHASE3: Attack2[] = [
       let aimStep = 0;
       const aimShoot = () => {
         if (!b.alive) return;
-        aimFanB(b, fire, px, py, 5, Math.PI / 4, P3 * 1.1, 0xff6600);
+        aimFanB(b, fire, px, py, 5, Math.PI / 4, P3 * 1.1, 0x88ccff);
         aimStep++;
         if (aimStep < 12) b.scene.time.delayedCall(300, aimShoot);
       };
       b.scene.time.delayedCall(800, aimShoot);
     },
-    pause: B2.phase3pause + 0.3,
+    pause: B3.phase3pause + 0.3,
   },
 ];
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Boss2: "Vortex, the Rift Engine"
-// 2-layer container: gears (behind) + body (center)
-// ═════════════════════════════════════════════════════════════════════════════
-export class Boss2 {
+// =============================================================================
+// Boss3: "Rosalia, the Shattered Bloom"
+// 2-layer container: wings (behind) + body (center)
+// =============================================================================
+export class Boss3 {
   private container: Phaser.GameObjects.Container;
-  private gearsLayer: Phaser.GameObjects.Image;
+  private wingsLayer: Phaser.GameObjects.Image;
   private bodyLayer:  Phaser.GameObjects.Image;
   private allLayers:  Phaser.GameObjects.Image[];
 
@@ -373,7 +400,7 @@ export class Boss2 {
   hp: number;
   maxHp: number;
   alive  = true;
-  phase: Boss2Phase = 1;
+  phase: Boss3Phase = 1;
   readonly hW = 85;
   readonly hH = 115;
 
@@ -381,7 +408,7 @@ export class Boss2 {
   private state: AttackState = 'idle';
   private stateTimer  = 1.5;
   private atkIndex    = 0;
-  private attacks: Attack2[];
+  private attacks: Attack3[];
   private flashTimer  = 0;
   private animTime    = 0;
   private telegraphRing: Phaser.GameObjects.Graphics | null = null;
@@ -393,7 +420,7 @@ export class Boss2 {
   private readonly fireFn:      BossFireFn;
   private readonly laserFireFn: LaserFireFn;
 
-  onPhaseChange?: (phase: Boss2Phase) => void;
+  onPhaseChange?: (phase: Boss3Phase) => void;
   onDie?:          () => void;
 
   constructor(scene: Phaser.Scene, fire: BossFireFn, laserFire: LaserFireFn) {
@@ -401,34 +428,34 @@ export class Boss2 {
     this.fireFn       = fire;
     this.laserFireFn  = laserFire;
     this.x            = W + 300;
-    this.y            = B2.homeY;
-    this.hp           = B2.totalHp;
-    this.maxHp        = B2.totalHp;
-    this.attacks      = BOSS2_PHASE1;
-    this.targetX      = B2.homeX;
-    this.targetY      = B2.homeY;
+    this.y            = B3.homeY;
+    this.hp           = B3.totalHp;
+    this.maxHp        = B3.totalHp;
+    this.attacks      = BOSS3_PHASE1;
+    this.targetX      = B3.homeX;
+    this.targetY      = B3.homeY;
 
     const targetScale = 0.20;
 
-    // ── Build 2-layer container (gears -> body) ──────────────────────
+    // Build 2-layer container (wings -> body)
     this.container = scene.add.container(this.x, this.y).setDepth(DEPTH.ENEMY);
 
-    this.gearsLayer = scene.add.image(0, 0, 'boss2-gears').setScale(1.8);
-    this.bodyLayer  = scene.add.image(0, 0, 'boss2-body');
+    this.wingsLayer = scene.add.image(0, 0, 'boss3-wings').setScale(1.8);
+    this.bodyLayer  = scene.add.image(0, 0, 'boss3-body');
 
-    this.allLayers = [this.gearsLayer, this.bodyLayer];
+    this.allLayers = [this.wingsLayer, this.bodyLayer];
     this.container.add(this.allLayers);
     this.container.setScale(0);
 
-    // ── Ambient glow aura (teal) ─────────────────────────────────────
+    // Ambient glow aura (rose pink)
     this.bossGlow = scene.add.graphics().setDepth(DEPTH.ENEMY - 1);
-    this.bossGlow.fillStyle(0x00ccaa, 0.10);
+    this.bossGlow.fillStyle(0xff66cc, 0.10);
     this.bossGlow.fillCircle(0, 0, 210);
-    this.bossGlow.fillStyle(0x006655, 0.08);
+    this.bossGlow.fillStyle(0xcc3399, 0.08);
     this.bossGlow.fillCircle(0, 0, 160);
-    this.bossGlow.fillStyle(0x88ffee, 0.06);
+    this.bossGlow.fillStyle(0xff99dd, 0.06);
     this.bossGlow.fillCircle(0, 0, 105);
-    this.bossGlow.setPosition(B2.homeX, B2.homeY).setAlpha(0);
+    this.bossGlow.setPosition(B3.homeX, B3.homeY).setAlpha(0);
     scene.tweens.add({
       targets: this.bossGlow,
       alpha: 1,
@@ -448,7 +475,7 @@ export class Boss2 {
       ease: 'Sine.easeInOut',
     });
 
-    // ── Dramatic entrance ────────────────────────────────────────────
+    // Dramatic entrance
     const overlay = scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.5)
       .setDepth(DEPTH.OVERLAY);
     scene.tweens.add({
@@ -461,10 +488,10 @@ export class Boss2 {
 
     scene.tweens.add({
       targets: this.container,
-      x: B2.homeX,
+      x: B3.homeX,
       duration: 1200,
       ease: 'Power2.easeOut',
-      onComplete: () => { this.x = B2.homeX; },
+      onComplete: () => { this.x = B3.homeX; },
     });
 
     scene.tweens.add({
@@ -476,7 +503,7 @@ export class Boss2 {
     });
 
     scene.time.delayedCall(750, () => {
-      const flash = scene.add.circle(B2.homeX, B2.homeY, 200, 0xffffff, 0.85)
+      const flash = scene.add.circle(B3.homeX, B3.homeY, 200, 0xffffff, 0.85)
         .setDepth(DEPTH.FX)
         .setBlendMode(Phaser.BlendModes.ADD);
       scene.tweens.add({
@@ -518,12 +545,12 @@ export class Boss2 {
       this.targetY = Phaser.Math.Between(200, H - 200);
     }
 
-    // ── Layer animation ──────────────────────────────────────────────
+    // Layer animation
     const t = this.animTime;
 
-    // Gear layer ROTATES continuously
-    this.gearsLayer.angle += dt * 15;
-    this.gearsLayer.y = Math.sin(t * 0.5 * TWO_PI) * 6;
+    // Wings layer gentle flutter
+    this.wingsLayer.y = Math.sin(t * 0.5 * TWO_PI) * 6;
+    this.wingsLayer.angle = Math.sin(t * 0.3 * TWO_PI) * 5;
 
     // Body subtle bob
     this.bodyLayer.y = Math.sin(t * 0.7 * TWO_PI) * 4;
@@ -538,12 +565,12 @@ export class Boss2 {
       case 'idle':
         this.state      = 'telegraph';
         this.stateTimer = this.attacks[this.atkIndex].telegraph;
-        for (const l of this.allLayers) l.setTint(0xaaffee);
+        for (const l of this.allLayers) l.setTint(0xffbbdd);
         this.telegraphRing = pulsingRing(
           this.scene,
           () => this.x,
           () => this.y,
-          0x88ffee,
+          0xff99dd,
         );
         break;
 
@@ -566,9 +593,9 @@ export class Boss2 {
 
       case 'pause': {
         this.state      = 'idle';
-        const idleTime = this.phase === 1 ? B2.phase1idle
-          : this.phase === 2 ? B2.phase2idle
-          : B2.phase3idle;
+        const idleTime = this.phase === 1 ? B3.phase1idle
+          : this.phase === 2 ? B3.phase2idle
+          : B3.phase3idle;
         this.stateTimer = idleTime;
         break;
       }
@@ -582,18 +609,18 @@ export class Boss2 {
     for (const l of this.allLayers) l.setTint(0xffffff);
     this.flashTimer = 0.05;
 
-    if (this.phase === 1 && this.hp <= this.maxHp * B2.phase2at) this.enterPhase(2);
-    else if (this.phase === 2 && this.hp <= this.maxHp * B2.phase3at) this.enterPhase(3);
+    if (this.phase === 1 && this.hp <= this.maxHp * B3.phase2at) this.enterPhase(2);
+    else if (this.phase === 2 && this.hp <= this.maxHp * B3.phase3at) this.enterPhase(3);
 
     if (this.hp <= 0) this.die();
   }
 
-  private enterPhase(p: Boss2Phase): void {
+  private enterPhase(p: Boss3Phase): void {
     this.phase    = p;
     this.atkIndex = 0;
     this.state    = 'idle';
-    this.stateTimer = B2.phaseTransitionPause;
-    this.attacks  = p === 2 ? BOSS2_PHASE2 : BOSS2_PHASE3;
+    this.stateTimer = B3.phaseTransitionPause;
+    this.attacks  = p === 2 ? BOSS3_PHASE2 : BOSS3_PHASE3;
 
     if (this.telegraphRing) {
       this.telegraphRing.destroy();
@@ -607,7 +634,7 @@ export class Boss2 {
       ease: 'Sine.easeInOut',
     });
 
-    shockwave(this.scene, this.x, this.y, p === 3 ? 0xff4400 : 0x00ccaa, 320);
+    shockwave(this.scene, this.x, this.y, p === 3 ? 0xff4488 : 0xff66cc, 320);
 
     this.onPhaseChange?.(p);
   }
@@ -643,7 +670,7 @@ export class Boss2 {
           alpha: { start: 1, end: 0 },
           lifespan: 500,
           blendMode: Phaser.BlendModes.ADD,
-          tint: [0x00ccaa, 0x88ffee, 0xffffff],
+          tint: [0xff66cc, 0xff99dd, 0xffffff],
           quantity: 14,
           emitting: false,
         });
@@ -681,15 +708,14 @@ export class Boss2 {
   getHpFraction(): number { return Math.max(0, this.hp / this.maxHp); }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Miniboss2: "Warden Automaton"
-// 3-layer container: shield (behind) + body (center) + lance (front)
-// ═════════════════════════════════════════════════════════════════════════════
-export class Miniboss2 {
+// =============================================================================
+// Miniboss3: "Thorn Sentinel"
+// 2-layer container: thorns (behind) + body (center)
+// =============================================================================
+export class Miniboss3 {
   private container: Phaser.GameObjects.Container;
-  private shieldLayer: Phaser.GameObjects.Image;
+  private thornsLayer: Phaser.GameObjects.Image;
   private bodyLayer:   Phaser.GameObjects.Image;
-  private lanceLayer:  Phaser.GameObjects.Image;
   private allLayers:   Phaser.GameObjects.Image[];
 
   x: number;
@@ -719,19 +745,18 @@ export class Miniboss2 {
     this.laserFire = laserFire;
     this.x         = W + 200;
     this.y         = H / 2;
-    this.hp        = MB2.hp;
-    this.maxHp     = MB2.hp;
-    this.atkTimer  = MB2.attackTimer;
+    this.hp        = MB3.hp;
+    this.maxHp     = MB3.hp;
+    this.atkTimer  = MB3.attackTimer;
     this.targetY   = H / 2;
 
-    // ── Build 3-layer container (shield -> body -> lance) ────────────
+    // Build 2-layer container (thorns -> body)
     this.container = scene.add.container(this.x, this.y).setDepth(DEPTH.ENEMY);
 
-    this.shieldLayer = scene.add.image(-120, 0, 'miniboss2-shield').setScale(0.7);
-    this.bodyLayer   = scene.add.image(0, 0, 'miniboss2-body');
-    this.lanceLayer  = scene.add.image(140, 60, 'miniboss2-lance').setScale(0.6);
+    this.thornsLayer = scene.add.image(0, 0, 'miniboss3-thorns').setScale(1.2);
+    this.bodyLayer   = scene.add.image(0, 0, 'miniboss3-body');
 
-    this.allLayers = [this.shieldLayer, this.bodyLayer, this.lanceLayer];
+    this.allLayers = [this.thornsLayer, this.bodyLayer];
     this.container.add(this.allLayers);
     this.container.setScale(0.15);
     this.container.scaleX = -0.15;
@@ -768,21 +793,13 @@ export class Miniboss2 {
       this.targetY = Phaser.Math.Between(160, H - 160);
     }
 
-    // ── Layer animation ──────────────────────────────────────────────
+    // Layer animation
     const t = this.animTime;
 
-    // Shield sways slowly
-    const shieldBaseX = -120;
-    this.shieldLayer.x = shieldBaseX + Math.sin(t * 0.4 * TWO_PI) * 18;
-    this.shieldLayer.angle = Math.sin(t * 0.3 * TWO_PI) * 6;
-    this.shieldLayer.y = Math.sin(t * 0.5 * TWO_PI) * 10;
-
-    // Lance oscillates and angles
-    const lanceBaseX = 140;
-    const lanceBaseY = 60;
-    this.lanceLayer.x = lanceBaseX + Math.sin(t * 0.9 * TWO_PI + 0.3) * 15;
-    this.lanceLayer.y = lanceBaseY + Math.sin(t * 0.7 * TWO_PI) * 8;
-    this.lanceLayer.angle = Math.sin(t * 1.2 * TWO_PI + 0.5) * 10;
+    // Thorns sway slowly
+    this.thornsLayer.x = Math.sin(t * 0.4 * TWO_PI) * 14;
+    this.thornsLayer.angle = Math.sin(t * 0.3 * TWO_PI) * 6;
+    this.thornsLayer.y = Math.sin(t * 0.5 * TWO_PI) * 10;
 
     // Body bobs slightly
     this.bodyLayer.y = Math.sin(t * 0.65 * TWO_PI) * 4;
@@ -794,144 +811,133 @@ export class Miniboss2 {
   }
 
   private doAttack(px: number, py: number): void {
-    const spdMult = this.phase === 2 ? MB2.phase2speedMult : 1.0;
-    const mbSpd = BALANCE.stage2.bulletSpeed.base * MB2.bulletSpeedMult * spdMult;
+    const spdMult = this.phase === 2 ? MB3.phase2speedMult : 1.0;
+    const mbSpd = BALANCE.stage3.bulletSpeed.base * MB3.bulletSpeedMult * spdMult;
 
     // Phase 1: 4 attacks
     const phase1 = [
       () => {
-        // Lance Thrust: single aimed laser + 8-ring bullets
-        // Generous telegraph — this is the player's first miniboss laser
+        // Crystal Thrust: aimed laser + 8-ring bullets
         const angle = Math.atan2(py - this.y, px - this.x);
-        this.laserFire(this.x, this.y, angle, 10, 1.2, 1.5, 0x00ccaa);
+        this.laserFire(this.x, this.y, angle, 10, 1.2, 1.5, 0xff66cc);
         for (let i = 0; i < 8; i++) {
           const a = (i / 8) * TWO_PI;
-          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.9, Math.sin(a) * mbSpd * 0.9, 1, 0x00ccaa);
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.9, Math.sin(a) * mbSpd * 0.9, 1, 0xff66cc);
         }
         this.atkTimer = 1.2;
       },
       () => {
-        // Shield Salvo: 7-shot aimed fan
+        // Thorn Spread: 5-shot aimed fan
         const base = Math.atan2(py - this.y, px - this.x);
-        for (let i = -3; i <= 3; i++) {
-          const a = base + i * 0.2;
-          this.fire(this.x, this.y, Math.cos(a) * mbSpd, Math.sin(a) * mbSpd, 1, 0xff6600);
+        for (let i = -2; i <= 2; i++) {
+          const a = base + i * 0.22;
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd, Math.sin(a) * mbSpd, 1, 0x88ccff);
         }
         this.atkTimer = 1.0;
       },
       () => {
-        // Clockwork Ring: 10-ring + 10-ring offset, alternating teal/orange
+        // Rose Ring: 10-ring teal + 10-ring offset pink
         for (let i = 0; i < 10; i++) {
           const a = (i / 10) * TWO_PI;
           this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.85, Math.sin(a) * mbSpd * 0.85, 1, 0x00ccaa);
         }
         for (let i = 0; i < 10; i++) {
           const a = (i / 10) * TWO_PI + Math.PI / 10;
-          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.7, Math.sin(a) * mbSpd * 0.7, 0.8, 0xff6600);
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.7, Math.sin(a) * mbSpd * 0.7, 0.8, 0xff66cc);
         }
         this.atkTimer = 1.3;
       },
       () => {
-        // Guard Counter: aimed3 fan warning, then a single rotating laser sweep
+        // Guard Bloom: aimed3 warning, then single rotating laser sweep
         const base = Math.atan2(py - this.y, px - this.x);
         for (let i = -1; i <= 1; i++) {
           const a = base + i * 0.3;
-          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.05, Math.sin(a) * mbSpd * 1.05, 1, 0xff6600);
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.05, Math.sin(a) * mbSpd * 1.05, 1, 0x88ccff);
         }
-        // Delay so the player reads the aimed shots first, then laser telegraph appears
         this.scene.time.delayedCall(600, () => {
           if (!this.alive) return;
           const startA = base - Math.PI / 4;
-          // Single rotating laser: telegraph shows start angle, then sweeps 90° over 1.4s
           const sweepRange = Math.PI / 2;
           const sweepDur   = 1.4;
-          this.laserFire(this.x, this.y, startA, 10, 0.8, sweepDur, 0x00ccaa,
-            { ownerId: 'miniboss2', rotSpeed: sweepRange / sweepDur });
+          this.laserFire(this.x, this.y, startA, 10, 0.8, sweepDur, 0xff66cc,
+            { ownerId: 'miniboss3', rotSpeed: sweepRange / sweepDur });
         });
         this.atkTimer = 2.4;
       },
     ];
 
-    // Phase 2: 6 attacks — faster, denser
+    // Phase 2: 6 attacks -- faster, denser
     const phase2 = [
       () => {
-        // Lance Thrust (fast): laser + 8-ring
-        // Phase 2 is harder but still needs readable telegraph —
-        // 0.8s is shorter than P1's 1.2s but still gives time to react
+        // Crystal Thrust (fast): laser + 8-ring
         const angle = Math.atan2(py - this.y, px - this.x);
-        this.laserFire(this.x, this.y, angle, 12, 0.8, 1.2, 0x00ccaa);
+        this.laserFire(this.x, this.y, angle, 12, 0.8, 1.2, 0xff66cc);
         for (let i = 0; i < 8; i++) {
           const a = (i / 8) * TWO_PI;
-          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.95, Math.sin(a) * mbSpd * 0.95, 1, 0x00ccaa);
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.95, Math.sin(a) * mbSpd * 0.95, 1, 0xff66cc);
         }
         this.atkTimer = 1.2;
       },
       () => {
-        // Shield Salvo (fast): 7-shot aimed fan
+        // Thorn Spread (fast): 7-shot aimed fan
         const base = Math.atan2(py - this.y, px - this.x);
         for (let i = -3; i <= 3; i++) {
           const a = base + i * 0.18;
-          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.05, Math.sin(a) * mbSpd * 1.05, 1, 0xff6600);
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.05, Math.sin(a) * mbSpd * 1.05, 1, 0x88ccff);
         }
         this.atkTimer = 0.7;
       },
       () => {
-        // Clockwork Ring (fast): tighter offset
+        // Rose Ring (fast): tighter offset
         for (let i = 0; i < 10; i++) {
           const a = (i / 10) * TWO_PI;
           this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.9, Math.sin(a) * mbSpd * 0.9, 1, 0x00ccaa);
         }
         for (let i = 0; i < 10; i++) {
           const a = (i / 10) * TWO_PI + Math.PI / 10;
-          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.75, Math.sin(a) * mbSpd * 0.75, 0.8, 0xff6600);
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.75, Math.sin(a) * mbSpd * 0.75, 0.8, 0xff66cc);
         }
         this.atkTimer = 1.0;
       },
       () => {
-        // Guard Counter P2: tighter timing than P1
+        // Guard Bloom P2: tighter timing
         const base = Math.atan2(py - this.y, px - this.x);
         for (let i = -1; i <= 1; i++) {
           const a = base + i * 0.25;
-          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.1, Math.sin(a) * mbSpd * 1.1, 1, 0xff6600);
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.1, Math.sin(a) * mbSpd * 1.1, 1, 0x88ccff);
         }
         this.scene.time.delayedCall(400, () => {
           if (!this.alive) return;
           const startA = base - Math.PI / 4;
-          // Faster rotating laser: 90° over 1.2s, shorter telegraph
           const sweepRange = Math.PI / 2;
           const sweepDur   = 1.2;
-          this.laserFire(this.x, this.y, startA, 10, 0.6, sweepDur, 0x00ccaa,
-            { ownerId: 'miniboss2', rotSpeed: sweepRange / sweepDur });
+          this.laserFire(this.x, this.y, startA, 10, 0.6, sweepDur, 0xff66cc,
+            { ownerId: 'miniboss3', rotSpeed: sweepRange / sweepDur });
         });
         this.atkTimer = 2.0;
       },
       () => {
-        // Double Lance: two V-pattern lasers + aimed fan outside the V
-        // The V creates safe space BETWEEN the lasers — the player reads the
-        // telegraph and moves into the gap. Aimed bullets go OUTSIDE the V
-        // so the corridor between the lasers is the intended safe zone.
-        // 60-deg spread (was 30) gives a wide, readable corridor.
+        // Double Thorn: two V-lasers at 60-deg spread
         const base = Math.atan2(py - this.y, px - this.x);
-        const spread = Math.PI / 3; // 60 degrees — wide V with clear safe zone
-        this.laserFire(this.x, this.y, base + spread, 10, 0.7, 1.5, 0x00ccaa);
-        this.laserFire(this.x, this.y, base - spread, 10, 0.7, 1.5, 0x00ccaa);
-        // Aimed bullets go OUTSIDE the V — punish players who dodge the wrong way
+        const spread = Math.PI / 3;
+        this.laserFire(this.x, this.y, base + spread, 10, 0.7, 1.5, 0xff66cc);
+        this.laserFire(this.x, this.y, base - spread, 10, 0.7, 1.5, 0x88ccff);
         this.scene.time.delayedCall(300, () => {
           if (!this.alive) return;
           for (let i = 0; i < 3; i++) {
-            const aUp  = base + spread + 0.15 + i * 0.2;
+            const aUp   = base + spread + 0.15 + i * 0.2;
             const aDown = base - spread - 0.15 - i * 0.2;
-            this.fire(this.x, this.y, Math.cos(aUp) * mbSpd * 0.95, Math.sin(aUp) * mbSpd * 0.95, 1, 0xff6600);
-            this.fire(this.x, this.y, Math.cos(aDown) * mbSpd * 0.95, Math.sin(aDown) * mbSpd * 0.95, 1, 0xff6600);
+            this.fire(this.x, this.y, Math.cos(aUp) * mbSpd * 0.95, Math.sin(aUp) * mbSpd * 0.95, 1, 0x88ccff);
+            this.fire(this.x, this.y, Math.cos(aDown) * mbSpd * 0.95, Math.sin(aDown) * mbSpd * 0.95, 1, 0x88ccff);
           }
         });
         this.atkTimer = 1.5;
       },
       () => {
-        // Overcharge: 14-ring + rapid aimed3 bursts (3 volleys)
+        // Petal Storm: 14-ring + 3 aimed bursts
         for (let i = 0; i < 14; i++) {
           const a = (i / 14) * TWO_PI;
-          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.85, Math.sin(a) * mbSpd * 0.85, 1.1, 0x00ccaa);
+          this.fire(this.x, this.y, Math.cos(a) * mbSpd * 0.85, Math.sin(a) * mbSpd * 0.85, 1.1, 0xff66cc);
         }
         let burst = 0;
         const shoot = () => {
@@ -939,7 +945,7 @@ export class Miniboss2 {
           const base = Math.atan2(py - this.y, px - this.x);
           for (let i = -1; i <= 1; i++) {
             const a = base + i * 0.25;
-            this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.1, Math.sin(a) * mbSpd * 1.1, 1, 0xff6600);
+            this.fire(this.x, this.y, Math.cos(a) * mbSpd * 1.1, Math.sin(a) * mbSpd * 1.1, 1, 0x88ccff);
           }
           burst++;
           if (burst < 3) this.scene.time.delayedCall(250, shoot);
@@ -961,7 +967,7 @@ export class Miniboss2 {
     this.flashTimer = 0.06;
 
     // Phase transition at threshold
-    if (this.phase === 1 && this.hp <= this.maxHp * MB2.phase2at) {
+    if (this.phase === 1 && this.hp <= this.maxHp * MB3.phase2at) {
       this.enterPhase2();
     }
 
@@ -973,8 +979,8 @@ export class Miniboss2 {
     this.atkIndex = 0;
 
     // Visual flash + shockwave
-    shockwave(this.scene, this.x, this.y, 0x00ccaa, 200);
-    for (const l of this.allLayers) l.setTint(0x00ccaa);
+    shockwave(this.scene, this.x, this.y, 0xff66cc, 200);
+    for (const l of this.allLayers) l.setTint(0xff66cc);
     this.scene.time.delayedCall(400, () => {
       if (this.alive) for (const l of this.allLayers) l.clearTint();
     });

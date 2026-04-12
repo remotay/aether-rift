@@ -51,10 +51,26 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('portrait-miniboss2', 'assets/portraits/miniboss2_portrait.png');
     this.load.image('portrait-boss2',     'assets/portraits/boss2_portrait.png');
 
+    // ── Stage 3 assets ──────────────────────────────────────────────────────
+    this.load.image('bg-sky-s3',          'assets/backgrounds/bg-sky-s3.png');
+    this.load.image('enemy-gunner-body',  'assets/sprites/enemy_gunner_body.png');
+    this.load.image('enemy-gunner-wings', 'assets/sprites/enemy_gunner_wings.png');
+    this.load.image('enemy-bloom-body',   'assets/sprites/enemy_bloom_body.png');
+    this.load.image('enemy-bloom-petals', 'assets/sprites/enemy_bloom_petals.png');
+    this.load.image('enemy-prism-body',   'assets/sprites/enemy_prism_body.png');
+    this.load.image('enemy-prism-crystal','assets/sprites/enemy_prism_crystal.png');
+    this.load.image('miniboss3-body',     'assets/sprites/miniboss3_body.png');
+    this.load.image('miniboss3-thorns',   'assets/sprites/miniboss3_thorns.png');
+    this.load.image('boss3-body',         'assets/sprites/boss3_body.png');
+    this.load.image('boss3-wings',        'assets/sprites/boss3_wings.png');
+    this.load.image('portrait-miniboss3', 'assets/portraits/miniboss3_portrait.png');
+    this.load.image('portrait-boss3',     'assets/portraits/boss3_portrait.png');
+
     // ── Background music ────────────────────────────────────────────────────
     this.load.audio('bgm-title',  'assets/music/title-bgm.wav');
     this.load.audio('bgm-stage1', 'assets/music/stage1-bgm.wav');
     this.load.audio('bgm-stage2', 'assets/music/stage2-bgm.wav');
+    this.load.audio('bgm-stage3', 'assets/music/stage3-bgm.wav');
     this.load.audio('bgm-boss',   'assets/music/boss-bgm.wav');
 
     // Loading bar
@@ -107,10 +123,23 @@ export class PreloadScene extends Phaser.Scene {
     this.processSprite('portrait-miniboss2', { skipPass2: true });
     this.processSprite('portrait-boss2',     { skipPass2: true });
 
+    // ── Stage 3 assets ──
+    this.processCoAlignedParts(['enemy-gunner-body', 'enemy-gunner-wings']);
+    this.processCoAlignedParts(['enemy-bloom-body', 'enemy-bloom-petals']);
+    this.processCoAlignedParts(['enemy-prism-body', 'enemy-prism-crystal']);
+    this.chromaKey('miniboss3-body');
+    this.chromaKey('miniboss3-thorns');
+    this.chromaKey('boss3-body');
+    this.chromaKey('boss3-wings');
+    this.processSprite('portrait-miniboss3', { skipPass2: true });
+    this.processSprite('portrait-boss3', { skipPass2: true });
+
     // Resize bg-sky to a power-of-two canvas for scrolling
     this.resizeBgSky('bg-sky');
     // Stage 2 background
     this.resizeBgSky('bg-sky-s2');
+    // Stage 3 background
+    this.resizeBgSky('bg-sky-s3');
 
     // Procedural textures
     this.generateTextures();

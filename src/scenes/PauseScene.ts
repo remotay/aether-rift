@@ -133,18 +133,21 @@ export class PauseScene extends Phaser.Scene {
         this.registry.set('carryPower', MAX_POWER);
         this.registry.set('currentStage', nextStage);
         this.registry.set('stage1Cleared', true);
-        bgm.stop(300);
+        if (currentStage >= 2) this.registry.set('stage2Cleared', true);
+        bgm.stop(0);
         this.scene.stop('PauseScene');
         this.scene.stop('GameScene');
         this.scene.start('GameScene', { stage: nextStage });
         break;
       }
       case 3: // RETRY
+        bgm.stop(0);
         this.scene.stop('PauseScene');
         this.scene.stop('GameScene');
         this.scene.start('GameScene');
         break;
       case 4: // QUIT TO TITLE
+        bgm.stop(0);
         this.scene.stop('PauseScene');
         this.scene.stop('GameScene');
         this.scene.start('TitleScene');

@@ -12,7 +12,8 @@ import { EnemyManager }     from '../systems/Enemy';
 import type { EnemyDef }    from '../systems/Enemy';
 import { Boss, Miniboss }   from '../systems/Boss';
 import { Boss2, Miniboss2 } from '../systems/Boss2';
-import type { LaserFireFn }  from '../systems/Boss2';
+import { Boss3, Miniboss3 } from '../systems/Boss3';
+import type { LaserFireFn }  from '../systems/Laser';
 import { LaserPool }         from '../systems/Laser';
 import { HUD }              from '../ui/HUD';
 import { BossBar }          from '../ui/BossBar';
@@ -34,8 +35,8 @@ export class GameScene extends Phaser.Scene {
   private pBullets!:   BulletPool;
   private eBullets!:   BulletPool;
   private enemyMgr!:   EnemyManager;
-  private boss:        Boss | Boss2 | null = null;
-  private miniboss:    Miniboss | Miniboss2 | null = null;
+  private boss:        Boss | Boss2 | Boss3 | null = null;
+  private miniboss:    Miniboss | Miniboss2 | Miniboss3 | null = null;
   private hud!:        HUD;
   private bossBar!:    BossBar;
   private laserPool!:  LaserPool;
@@ -102,8 +103,8 @@ export class GameScene extends Phaser.Scene {
 
     // Laser pool — used by Stage 2 enemies, miniboss, and boss
     this.laserPool = new LaserPool(this);
-    this.enemyMgr.laserFn = (x, y, angle, w, telDur, actDur, tint) => {
-      this.laserPool.fireLaser(x, y, angle, w, telDur, actDur, tint);
+    this.enemyMgr.laserFn = (x, y, angle, w, telDur, actDur, tint, opts?) => {
+      this.laserPool.fireLaser(x, y, angle, w, telDur, actDur, tint, opts);
     };
 
     // Player bullet pool
@@ -144,13 +145,14 @@ export class GameScene extends Phaser.Scene {
 
     // ── BGM ──────────────────────────────────────────────────────────────
     bgm.bind(this);
-    bgm.play(this.stageId === 2 ? 'stage2' : 'stage1', 1200);
+    bgm.play(this.stageId === 3 ? 'stage3' : this.stageId === 2 ? 'stage2' : 'stage1', 1200);
 
     // Fade-in intro
     this.cameras.main.fadeIn(500, 0, 0, 0);
     const stageLabels: Record<number, string> = {
       1: 'STAGE I: THRESHOLD OF ETERNITY',
       2: 'STAGE II: CLOCKWORK ABYSS',
+      3: 'STAGE III: SHATTERED EDEN',
     };
     const stageLabel = stageLabels[this.stageId] ?? `STAGE  ${this.stageId}`;
     this.time.delayedCall(600, () => {
@@ -240,11 +242,11 @@ export class GameScene extends Phaser.Scene {
 
   private buildBackground(): void {
     // Solid base — prevents any checkerboard gaps
-    const baseTint = this.stageId === 2 ? 0x020a0e : 0x06010e;
+    const baseTint = this.stageId === 3 ? 0x0a0418 : this.stageId === 2 ? 0x020a0e : 0x06010e;
     this.add.rectangle(W / 2, H / 2, W, H, baseTint).setDepth(DEPTH.BG_FAR - 1);
 
     // Static atmospheric sky backdrop
-    const skyKey = this.stageId === 2 ? 'bg-sky-s2' : 'bg-sky';
+    const skyKey = this.stageId === 3 ? 'bg-sky-s3' : this.stageId === 2 ? 'bg-sky-s2' : 'bg-sky';
     if (this.textures.exists(skyKey)) {
       this.add.image(W / 2, H / 2, skyKey)
         .setDisplaySize(W, H)
@@ -258,7 +260,9 @@ export class GameScene extends Phaser.Scene {
       if (this.textures.exists(k)) this.textures.remove(k);
     });
 
-    if (this.stageId === 2) {
+    if (this.stageId === 3) {
+      this.buildStage3Parallax();
+    } else if (this.stageId === 2) {
       this.buildStage2Parallax();
     } else {
       const mtC = this.buildMountainLayer();
@@ -377,6 +381,10 @@ export class GameScene extends Phaser.Scene {
   // ─── WAVE TIMELINE ────────────────────────────────────────────────────────
 
   private buildTimeline(): void {
+    if (this.stageId === 3) {
+      this.buildStage3Timeline();
+      return;
+    }
     if (this.stageId === 2) {
       this.buildStage2Timeline();
       return;
@@ -620,6 +628,21 @@ export class GameScene extends Phaser.Scene {
              behavior: 'strafe', delay };
   }
 
+  private gunnerDef(x: number, y: number, tx: number, ty: number, pattern: EnemyDef['pattern'], shootInt: number, delay = 0): EnemyDef {
+    const c = BALANCE.stage3.enemies.gunner;
+    return { type: 'gunner', x, y, targetX: tx, targetY: ty, hp: c.hp, speed: c.speed, hoverDur: c.hoverDur, pattern, shootInt, score: c.score, delay };
+  }
+
+  private bloomDef(x: number, y: number, tx: number, ty: number, pattern: EnemyDef['pattern'], shootInt: number, delay = 0): EnemyDef {
+    const c = BALANCE.stage3.enemies.bloom;
+    return { type: 'bloom', x, y, targetX: tx, targetY: ty, hp: c.hp, speed: c.speed, hoverDur: c.hoverDur, pattern, shootInt, score: c.score, delay };
+  }
+
+  private prismDef(x: number, y: number, tx: number, ty: number, pattern: EnemyDef['pattern'], shootInt: number, delay = 0): EnemyDef {
+    const c = BALANCE.stage3.enemies.prism;
+    return { type: 'prism', x, y, targetX: tx, targetY: ty, hp: c.hp, speed: c.speed, hoverDur: c.hoverDur, pattern, shootInt, score: c.score, delay };
+  }
+
   // ─── STAGE 2 WAVE TIMELINE ────────────────────────────────────────────────
 
   private buildStage2Timeline(): void {
@@ -818,6 +841,203 @@ export class GameScene extends Phaser.Scene {
     ]));
   }
 
+  // ─── STAGE 3 WAVE TIMELINE ────────────────────────────────────────────────
+
+  private buildStage3Timeline(): void {
+    const wave = (t: number, waveNum: number, fn: () => void) => {
+      this.waveEvents.push([t, () => {
+        this.currentWaveNum = waveNum;
+        fn();
+      }]);
+    };
+
+    // ======================================================================
+    //  20 waves over ~110 seconds — crystal garden, escalating patterns
+    //
+    //  ACT 1: TUTORIAL (waves 1-4)      — introduce gunner, bloom, prism
+    //  ACT 2: INTRODUCTION (waves 5-9)  — mix types, split + spiral patterns
+    //  ACT 3: COMBINATION (waves 10-15) — dense mixed waves, laser patterns
+    //  ACT 4: CRESCENDO (waves 16-20)   — pre-miniboss pressure, all combined
+    // ======================================================================
+
+    // ── ACT 1: TUTORIAL ─────────────────────────────────────────────────
+    // Wave 1 (t=2s): 3 gunners, aimed singles
+    wave(2, 1, () => this.enemyMgr.spawnWave([
+      this.gunnerDef(W + 80,  260, 1380, 280, 'aimed', 1.6, 0),
+      this.gunnerDef(W + 80,  540, 1400, 540, 'aimed', 1.6, 0.3),
+      this.gunnerDef(W + 80,  820, 1380, 800, 'aimed', 1.6, 0.6),
+    ]));
+
+    // Wave 2 (t=8s): 3 blooms, aimed3
+    wave(8, 2, () => this.enemyMgr.spawnWave([
+      this.bloomDef(W + 80,  200, 1460, 220, 'aimed3', 2.2, 0),
+      this.bloomDef(W + 80,  540, 1480, 540, 'aimed3', 2.2, 0.3),
+      this.bloomDef(W + 80,  880, 1460, 860, 'aimed3', 2.2, 0.6),
+    ]));
+
+    // Wave 3 (t=14s): 3 prisms, ring8
+    wave(14, 3, () => this.enemyMgr.spawnWave([
+      this.prismDef(W + 80,  300, 1500, 300, 'ring8', 2.6, 0),
+      this.prismDef(W + 80,  540, 1520, 540, 'ring8', 2.6, 0.35),
+      this.prismDef(W + 80,  780, 1500, 780, 'ring8', 2.6, 0.7),
+    ]));
+
+    // Wave 4 (t=20s): 4 gunners, burst3 pattern
+    wave(20, 4, () => this.enemyMgr.spawnWave([
+      this.gunnerDef(W + 80,  180, 1400, 200, 'burst3', 1.8, 0),
+      this.gunnerDef(W + 80,  420, 1420, 420, 'burst3', 1.8, 0.2),
+      this.gunnerDef(W + 80,  660, 1400, 660, 'burst3', 1.8, 0.4),
+      this.gunnerDef(W + 80,  900, 1420, 900, 'burst3', 1.8, 0.6),
+    ]));
+
+    // ── ACT 2: INTRODUCTION ─────────────────────────────────────────────
+    // Wave 5 (t=28s): 2 blooms (split) + 2 gunners
+    wave(28, 5, () => this.enemyMgr.spawnWave([
+      this.bloomDef(W + 80,   300, 1460, 300, 'split', 2.4, 0),
+      this.bloomDef(W + 80,   780, 1460, 780, 'split', 2.4, 0.4),
+      this.gunnerDef(W + 80,  500, 1380, 500, 'aimed', 1.4, 0.7),
+      this.gunnerDef(W + 80,  600, 1380, 600, 'aimed', 1.4, 0.9),
+    ]));
+
+    // Wave 6 (t=34s): 3 prisms (spiral3) + 1 bloom
+    wave(34, 6, () => this.enemyMgr.spawnWave([
+      this.prismDef(W + 80,   220, 1500, 240, 'spiral3', 2.2, 0),
+      this.prismDef(W + 80,   540, 1520, 540, 'spiral3', 2.2, 0.3),
+      this.prismDef(W + 80,   860, 1500, 840, 'spiral3', 2.2, 0.6),
+      this.bloomDef(W + 80,   540, 1460, 540, 'aimed3',  2.4, 0.9),
+    ]));
+
+    // Wave 7 (t=40s): 4 gunners (aimed3) + 2 prisms
+    wave(40, 7, () => this.enemyMgr.spawnWave([
+      this.gunnerDef(W + 80,  200, 1400, 200, 'aimed3', 1.6, 0),
+      this.gunnerDef(W + 80,  400, 1420, 400, 'aimed3', 1.6, 0.15),
+      this.gunnerDef(W + 80,  680, 1400, 680, 'aimed3', 1.6, 0.3),
+      this.gunnerDef(W + 80,  880, 1420, 880, 'aimed3', 1.6, 0.45),
+      this.prismDef(W + 80,   340, 1500, 340, 'ring8',  2.4, 0.7),
+      this.prismDef(W + 80,   740, 1500, 740, 'ring8',  2.4, 0.9),
+    ]));
+
+    // Wave 8 (t=46s): 2 blooms (split) + 3 gunners (burst3)
+    wave(46, 8, () => this.enemyMgr.spawnWave([
+      this.bloomDef(W + 80,   260, 1480, 280, 'split', 2.6, 0),
+      this.bloomDef(W + 80,   820, 1480, 800, 'split', 2.6, 0.4),
+      this.gunnerDef(W + 80,  440, 1380, 440, 'burst3', 1.6, 0.6),
+      this.gunnerDef(W + 80,  540, 1380, 540, 'burst3', 1.6, 0.8),
+      this.gunnerDef(W + 80,  640, 1380, 640, 'burst3', 1.6, 1.0),
+    ]));
+
+    // Wave 9 (t=52s): 2 prisms (laser_aimed) + 2 blooms
+    wave(52, 9, () => this.enemyMgr.spawnWave([
+      this.prismDef(W + 80,   340, 1500, 340, 'laser_aimed', 3.0, 0),
+      this.prismDef(W + 80,   740, 1500, 740, 'laser_aimed', 3.0, 0.5),
+      this.bloomDef(W + 80,   440, 1440, 440, 'aimed3', 2.0, 0.8),
+      this.bloomDef(W + 80,   640, 1440, 640, 'aimed3', 2.0, 1.0),
+    ]));
+
+    // ── ACT 3: COMBINATION ──────────────────────────────────────────────
+    // Wave 10 (t=58s): 5 gunners in formation (aimed)
+    wave(58, 10, () => this.enemyMgr.spawnWave([
+      this.gunnerDef(W + 80,  160, 1360, 160, 'aimed', 1.4, 0),
+      this.gunnerDef(W + 80,  340, 1380, 340, 'aimed', 1.4, 0.12),
+      this.gunnerDef(W + 80,  520, 1360, 520, 'aimed', 1.4, 0.24),
+      this.gunnerDef(W + 80,  700, 1380, 700, 'aimed', 1.4, 0.36),
+      this.gunnerDef(W + 80,  880, 1360, 880, 'aimed', 1.4, 0.48),
+    ]));
+
+    // Wave 11 (t=63s): 2 blooms + prism + laser gunner (HEAVY)
+    wave(63, 11, () => this.enemyMgr.spawnWave([
+      this.bloomDef(W + 80,   280, 1500, 280, 'split', 2.4, 0),
+      this.bloomDef(W + 80,   800, 1500, 800, 'split', 2.4, 0.4),
+      this.prismDef(W + 80,   540, 1540, 540, 'ring8', 2.6, 0.7),
+      this.gunnerDef(W + 80,  440, 1420, 440, 'laser_aimed', 2.8, 1.0),
+    ]));
+
+    // Wave 12 (t=68s): 3 prisms (spiral3) + 3 gunners (LIGHTER)
+    wave(68, 12, () => this.enemyMgr.spawnWave([
+      this.prismDef(W + 80,   200, 1500, 220, 'spiral3', 2.2, 0),
+      this.prismDef(W + 80,   540, 1520, 540, 'spiral3', 2.2, 0.25),
+      this.prismDef(W + 80,   880, 1500, 860, 'spiral3', 2.2, 0.5),
+      this.gunnerDef(W + 80,  360, 1380, 360, 'aimed3', 1.6, 0.7),
+      this.gunnerDef(W + 80,  540, 1380, 540, 'aimed3', 1.6, 0.85),
+      this.gunnerDef(W + 80,  720, 1380, 720, 'aimed3', 1.6, 1.0),
+    ]));
+
+    // Wave 13 (t=73s): 2 blooms(ring8) + 2 prisms(laser_cross) — dense
+    wave(73, 13, () => this.enemyMgr.spawnWave([
+      this.bloomDef(W + 80,   300, 1480, 300, 'ring8', 2.4, 0),
+      this.bloomDef(W + 80,   780, 1480, 780, 'ring8', 2.4, 0.35),
+      this.prismDef(W + 80,   440, 1460, 440, 'laser_cross', 3.2, 0.7),
+      this.prismDef(W + 80,   640, 1460, 640, 'laser_cross', 3.2, 1.0),
+    ]));
+
+    // Wave 14 (t=78s): 3 gunners + 2 blooms + 1 prism (overlapping)
+    wave(78, 14, () => this.enemyMgr.spawnWave([
+      this.gunnerDef(W + 80,  180, 1400, 200, 'burst3', 1.4, 0),
+      this.gunnerDef(W + 80,  540, 1420, 540, 'burst3', 1.4, 0.25),
+      this.gunnerDef(W + 80,  900, 1400, 880, 'burst3', 1.4, 0.5),
+      this.bloomDef(W + 80,   360, 1480, 360, 'split', 2.4, 0.7),
+      this.bloomDef(W + 80,   720, 1480, 720, 'split', 2.4, 0.9),
+      this.prismDef(W + 80,   540, 1520, 540, 'ring8', 2.6, 1.1),
+    ]));
+
+    // Wave 15 (t=83s): 4 gunners (LIGHTER breather)
+    wave(83, 15, () => this.enemyMgr.spawnWave([
+      this.gunnerDef(W + 80,  200, 1460, 260, 'aimed', 1.8, 0),
+      this.gunnerDef(W + 80,  460, 1480, 460, 'aimed', 1.8, 0.2),
+      this.gunnerDef(W + 80,  620, 1480, 620, 'aimed', 1.8, 0.4),
+      this.gunnerDef(W + 80,  880, 1460, 820, 'aimed', 1.8, 0.6),
+    ]));
+
+    // ── ACT 4: CRESCENDO ────────────────────────────────────────────────
+    // Wave 16 (t=88s): 2 blooms + 2 prisms + laser gunner
+    wave(88, 16, () => this.enemyMgr.spawnWave([
+      this.bloomDef(W + 80,   300, 1480, 300, 'split', 2.2, 0),
+      this.bloomDef(W + 80,   780, 1480, 780, 'split', 2.2, 0.3),
+      this.prismDef(W + 80,   440, 1520, 440, 'spiral3', 2.0, 0.6),
+      this.prismDef(W + 80,   640, 1520, 640, 'spiral3', 2.0, 0.8),
+      this.gunnerDef(W + 80,  540, 1440, 540, 'laser_aimed', 2.6, 1.0),
+    ]));
+
+    // Wave 17 (t=93s): 3 blooms(ring8) + 3 gunners(burst3)
+    wave(93, 17, () => this.enemyMgr.spawnWave([
+      this.bloomDef(W + 80,   200, 1500, 220, 'ring8', 2.2, 0),
+      this.bloomDef(W + 80,   540, 1520, 540, 'ring8', 2.2, 0.3),
+      this.bloomDef(W + 80,   880, 1500, 860, 'ring8', 2.2, 0.6),
+      this.gunnerDef(W + 80,  360, 1400, 360, 'burst3', 1.4, 0.8),
+      this.gunnerDef(W + 80,  540, 1400, 540, 'burst3', 1.4, 1.0),
+      this.gunnerDef(W + 80,  720, 1400, 720, 'burst3', 1.4, 1.2),
+    ]));
+
+    // Wave 18 (t=98s): 2 prisms(laser_fan) + 2 blooms + 2 gunners
+    wave(98, 18, () => this.enemyMgr.spawnWave([
+      this.prismDef(W + 80,   300, 1500, 300, 'laser_fan', 3.0, 0),
+      this.prismDef(W + 80,   780, 1500, 780, 'laser_fan', 3.0, 0.5),
+      this.bloomDef(W + 80,   440, 1440, 440, 'aimed3', 2.0, 0.8),
+      this.bloomDef(W + 80,   640, 1440, 640, 'aimed3', 2.0, 1.0),
+      this.gunnerDef(W + 80,  200, 1380, 200, 'aimed', 1.4, 1.2),
+      this.gunnerDef(W + 80,  880, 1380, 880, 'aimed', 1.4, 1.4),
+    ]));
+
+    // Wave 19 (t=103s): 3 prisms(laser_cross) — triple laser challenge
+    wave(103, 19, () => this.enemyMgr.spawnWave([
+      this.prismDef(W + 80,   260, 1460, 260, 'laser_cross', 3.0, 0),
+      this.prismDef(W + 80,   540, 1480, 540, 'laser_cross', 3.0, 0.4),
+      this.prismDef(W + 80,   820, 1460, 820, 'laser_cross', 3.0, 0.8),
+    ]));
+
+    // Wave 20 (t=108s): Grand all-types wave (8+ enemies)
+    wave(108, 20, () => this.enemyMgr.spawnWave([
+      this.bloomDef(W + 80,   180, 1520, 200, 'split', 2.4, 0),
+      this.prismDef(W + 80,   360, 1540, 360, 'spiral3', 2.2, 0.25),
+      this.gunnerDef(W + 80,  540, 1400, 540, 'burst3', 1.4, 0.5),
+      this.bloomDef(W + 80,   720, 1520, 720, 'ring8', 2.2, 0.75),
+      this.prismDef(W + 80,   900, 1480, 880, 'spiral3', 2.2, 1.0),
+      this.gunnerDef(W + 80,  260, 1400, 260, 'aimed3', 1.6, 1.25),
+      this.gunnerDef(W + 80,  820, 1400, 820, 'aimed3', 1.6, 1.5),
+      this.bloomDef(W + 80,   540, 1460, 540, 'split', 2.4, 1.7),
+    ]));
+  }
+
   private tickWaves(): void {
     while (this.nextWave < this.waveEvents.length && this.stageTimer >= this.waveEvents[this.nextWave][0]) {
       this.waveEvents[this.nextWave][1]();
@@ -829,7 +1049,8 @@ export class GameScene extends Phaser.Scene {
 
   private enterMiniboss(): void {
     this.phase = 'miniboss';
-    const minibossLabel = this.stageId === 2 ? '\u26A0  WARDEN  \u26A0' : '\u26A0  ELITE  \u26A0';
+    const minibossLabel = this.stageId === 3 ? '\u26A0  SENTINEL  \u26A0'
+      : this.stageId === 2 ? '\u26A0  WARDEN  \u26A0' : '\u26A0  ELITE  \u26A0';
     this.hud.showMessage(minibossLabel, 2000, 0x55ddff, 56);
     sfx.bossWarning();
 
@@ -837,9 +1058,15 @@ export class GameScene extends Phaser.Scene {
       this.eBullets.fire(x, y, vx, vy, sc, sc, tint);
     };
 
-    if (this.stageId === 2) {
-      const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint) => {
-        this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint);
+    if (this.stageId === 3) {
+      const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint, opts?) => {
+        this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint, opts);
+      };
+      this.miniboss = new Miniboss3(this, fireFn, laserFireFn);
+      this.bossBar.show('THORN SENTINEL');
+    } else if (this.stageId === 2) {
+      const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint, opts?) => {
+        this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint, opts);
       };
       this.miniboss = new Miniboss2(this, fireFn, laserFireFn);
       this.bossBar.show('WARDEN AUTOMATON');
@@ -848,14 +1075,16 @@ export class GameScene extends Phaser.Scene {
       this.bossBar.show('SHRINE GUARDIAN');
     }
 
-    const minibossScore = this.stageId === 2 ? BALANCE.stage2.miniboss.score : BALANCE.miniboss.score;
+    const minibossScore = this.stageId === 3 ? BALANCE.stage3.miniboss.score
+      : this.stageId === 2 ? BALANCE.stage2.miniboss.score : BALANCE.miniboss.score;
     this.miniboss.onDie = () => {
       this.bossBar.hide();
       sfx.explosion();
       this.burst(this.miniboss!.x, this.miniboss!.y, 24, 0x44ffee);
       this.spawnPickups(this.miniboss!.x, this.miniboss!.y, BALANCE.pickups.minibossDrops, 'power');
       this.addScore(minibossScore);
-      const defeatMsg = this.stageId === 2 ? 'WARDEN DEFEATED' : 'ELITE DEFEATED';
+      const defeatMsg = this.stageId === 3 ? 'SENTINEL DEFEATED'
+        : this.stageId === 2 ? 'WARDEN DEFEATED' : 'ELITE DEFEATED';
       this.hud.showMessage(defeatMsg, 2000, 0x44ffee, 48);
       this.laserPool.releaseAll();
 
@@ -867,7 +1096,12 @@ export class GameScene extends Phaser.Scene {
       // More enemy waves during interlude
       this.time.delayedCall(1500, () => {
         if (this.phase !== 'interlude') return;
-        if (this.stageId === 2) {
+        if (this.stageId === 3) {
+          this.enemyMgr.spawnWave([
+            this.gunnerDef(W + 80, 320, 1380, 320, 'aimed', 1.6),
+            this.gunnerDef(W + 80, 760, 1380, 760, 'aimed', 1.6),
+          ]);
+        } else if (this.stageId === 2) {
           this.enemyMgr.spawnWave([
             this.droneDef(W + 80, 320, 1380, 320, 'aimed', 1.6),
             this.droneDef(W + 80, 760, 1380, 760, 'aimed', 1.6),
@@ -912,8 +1146,23 @@ export class GameScene extends Phaser.Scene {
     { speaker: 'boss',   name: 'Vortex',   text: 'Then be consumed by the engine of eternity!' },
   ];
 
+  private static readonly DIALOGUE_LINES_S3: Array<{
+    speaker: 'player' | 'boss';
+    name: string;
+    text: string;
+  }> = [
+    { speaker: 'player', name: 'Kira',     text: 'A garden of crystal... frozen in eternal bloom.\nWhat happened here?' },
+    { speaker: 'boss',   name: 'Rosalia',  text: 'Eden was perfect. Then the rift shattered\neverything I had cultivated.' },
+    { speaker: 'player', name: 'Kira',     text: 'I can feel the corruption spreading.\nLet me seal the rift and restore this place.' },
+    { speaker: 'boss',   name: 'Rosalia',  text: 'Restore? You would prune my thorns?\nThis garden blooms only for those who\ncan survive its beauty.' },
+    { speaker: 'player', name: 'Kira',     text: 'Then show me the thorns, Rosalia.\nI will not wilt!' },
+    { speaker: 'boss',   name: 'Rosalia',  text: 'Very well, little blossom. Let Eden\njudge whether you are worthy!' },
+  ];
+
   private getDialogueLines() {
-    return this.stageId === 2 ? GameScene.DIALOGUE_LINES_S2 : GameScene.DIALOGUE_LINES_S1;
+    return this.stageId === 3 ? GameScene.DIALOGUE_LINES_S3
+      : this.stageId === 2 ? GameScene.DIALOGUE_LINES_S2
+      : GameScene.DIALOGUE_LINES_S1;
   }
 
   private enterDialogue(): void {
@@ -968,7 +1217,7 @@ export class GameScene extends Phaser.Scene {
     const bossFrameBorder = this.add.rectangle(PORT_R_X, PORT_Y, PORT_SIZE + 4, PORT_SIZE + 4, 0, 0)
       .setDepth(DEPTH.OVERLAY - 1)
       .setStrokeStyle(2, 0xff66cc, 1);
-    const bossPortraitKey = this.stageId === 2 ? 'portrait-boss2' : 'portrait-boss';
+    const bossPortraitKey = this.stageId === 3 ? 'portrait-boss3' : this.stageId === 2 ? 'portrait-boss2' : 'portrait-boss';
     const bossPortrait = this.add.image(PORT_R_X, PORT_Y, bossPortraitKey)
       .setDisplaySize(PORT_SIZE, PORT_SIZE)
       .setDepth(DEPTH.OVERLAY);
@@ -1116,7 +1365,8 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Warning flash banner — larger and more impactful
-    const warningText = this.stageId === 2 ? '\u26A1 RIFT ENGINE \u26A1' : '!! BOSS APPROACHING !!';
+    const warningText = this.stageId === 3 ? '\u26A1 SHATTERED BLOOM \u26A1'
+      : this.stageId === 2 ? '\u26A1 RIFT ENGINE \u26A1' : '!! BOSS APPROACHING !!';
     const banner = this.add.text(W / 2, H / 2, warningText, {
       fontFamily: FONT,
       fontSize: '72px',
@@ -1149,9 +1399,15 @@ export class GameScene extends Phaser.Scene {
       this.bossEBullets.fire(x, y, vx, vy, sc, sc, tint);
     };
 
-    if (this.stageId === 2) {
-      const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint) => {
-        this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint);
+    if (this.stageId === 3) {
+      const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint, opts?) => {
+        this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint, opts);
+      };
+      this.boss = new Boss3(this, fireFn, laserFireFn);
+      this.bossBar.show('ROSALIA,  THE SHATTERED BLOOM');
+    } else if (this.stageId === 2) {
+      const laserFireFn: LaserFireFn = (ox, oy, angle, w, telDur, actDur, tint, opts?) => {
+        this.laserPool.fireLaser(ox, oy, angle, w, telDur, actDur, tint, opts);
       };
       this.boss = new Boss2(this, fireFn, laserFireFn);
       this.bossBar.show('VORTEX,  THE RIFT ENGINE');
@@ -1160,7 +1416,7 @@ export class GameScene extends Phaser.Scene {
       this.bossBar.show('AETHERIA,  BUTTERFLY DEITY');
     }
 
-    const phaseColor = this.stageId === 2 ? 0x00ccaa : 0xff88cc;
+    const phaseColor = this.stageId === 3 ? 0xff66cc : this.stageId === 2 ? 0x00ccaa : 0xff88cc;
 
     this.boss.onPhaseChange = (phase: number) => {
       sfx.phaseChange();
@@ -1172,7 +1428,8 @@ export class GameScene extends Phaser.Scene {
       this.hud.showMessage(msgs[phase] ?? '', 1800, phaseColor, 60);
     };
 
-    const bossScore = this.stageId === 2 ? BALANCE.stage2.boss.score : BALANCE.boss.score;
+    const bossScore = this.stageId === 3 ? BALANCE.stage3.boss.score
+      : this.stageId === 2 ? BALANCE.stage2.boss.score : BALANCE.boss.score;
     this.boss.onDie = () => {
       this.bossBar.hide();
       this.eBullets.releaseAll();
@@ -1348,6 +1605,7 @@ export class GameScene extends Phaser.Scene {
       e.hit(BALANCE.player.bomb.enemyDamage, (enemy) => {
         this.addScore(enemy.score, enemy.x, enemy.y);
         this.burst(enemy.x, enemy.y, 8, 0xffaa44);
+        this.laserPool.releaseByOwner(enemy.laserOwnerId);
         if (Math.random() < BALANCE.pickups.powerDropRate) this.spawnPickups(enemy.x, enemy.y, 1, 'power');
       });
     }
@@ -1427,6 +1685,43 @@ export class GameScene extends Phaser.Scene {
           this.eBullets.fire(ex, ey, Math.cos(a) * spd * 0.82, Math.sin(a) * spd * 0.82, 1, 1, 0xffcc22);
         }
         break;
+      case 'burst3': {
+        // 3-round rapid burst aimed at player (80ms intervals)
+        let burst3Count = 0;
+        const burst3Shoot = () => {
+          if (burst3Count >= 3) return;
+          this.eBullets.fire(ex, ey, Math.cos(baseAngle) * spd * 1.05, Math.sin(baseAngle) * spd * 1.05, 1, 1, 0xff66cc);
+          burst3Count++;
+          if (burst3Count < 3) this.time.delayedCall(80, burst3Shoot);
+        };
+        burst3Shoot();
+        break;
+      }
+      case 'split': {
+        // Fire one slow large bullet, then after 400ms fire 5 bullets in a ring from predicted position
+        const slowSpd = spd * 0.45;
+        const svx = Math.cos(baseAngle) * slowSpd;
+        const svy = Math.sin(baseAngle) * slowSpd;
+        this.eBullets.fire(ex, ey, svx, svy, 1.8, 1.8, 0x88ccff);
+        this.time.delayedCall(400, () => {
+          const px = ex + svx * 0.4;
+          const py2 = ey + svy * 0.4;
+          for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * Math.PI * 2;
+            this.eBullets.fire(px, py2, Math.cos(a) * spd * 0.7, Math.sin(a) * spd * 0.7, 1, 1, 0x88ccff);
+          }
+        });
+        break;
+      }
+      case 'spiral3': {
+        // 3 bullets in a rotating pattern
+        const spiralBase = this.stageTimer * 3;
+        for (let i = 0; i < 3; i++) {
+          const a = spiralBase + (i / 3) * Math.PI * 2;
+          this.eBullets.fire(ex, ey, Math.cos(a) * spd * 0.8, Math.sin(a) * spd * 0.8, 1, 1, 0xff66cc);
+        }
+        break;
+      }
     }
     sfx.enemyShoot();
   }
@@ -1518,6 +1813,7 @@ export class GameScene extends Phaser.Scene {
             this.addScore(dead.score, dead.x, dead.y);
             sfx.explosion();
             this.burst(dead.x, dead.y, 10, 0xffaa44);
+            this.laserPool.releaseByOwner(dead.laserOwnerId);
             if (Math.random() < BALANCE.pickups.powerDropRate) this.spawnPickups(dead.x, dead.y, 1, 'power');
             this.cameras.main.shake(90, 0.005);
           });
@@ -1582,6 +1878,7 @@ export class GameScene extends Phaser.Scene {
               this.addScore(dead.score, dead.x, dead.y);
               sfx.explosion();
               this.burst(dead.x, dead.y, 8, 0xffaa44);
+              this.laserPool.releaseByOwner(dead.laserOwnerId);
               if (Math.random() < BALANCE.pickups.powerDropRate) this.spawnPickups(dead.x, dead.y, 1, 'power');
               this.cameras.main.shake(80, 0.004);
             });
@@ -2174,6 +2471,251 @@ export class GameScene extends Phaser.Scene {
       ctx.fillStyle = 'rgba(0,200,170,0.15)';
       ctx.fillRect(vx - 4, TH - 44 - vh - 4, 8, 8);
       vx += rng.between(300, 600);
+    }
+
+    return cv;
+  }
+
+  // ─── STAGE 3 PARALLAX: Shattered Eden ─────────────────────────────────────
+
+  private buildStage3Parallax(): void {
+    // Far layer — crystal spires and frozen rose silhouettes
+    const farC = this.buildS3FarLayer();
+    this.textures.addCanvas('_bg_mt', farC);
+    this.bgMountains = this.add
+      .tileSprite(0, H, W, farC.height, '_bg_mt')
+      .setOrigin(0, 1)
+      .setDepth(DEPTH.BG_MID - 1);
+
+    // Mid layer — frozen garden ruins with thorny vines
+    const midC = this.buildS3MidLayer();
+    this.textures.addCanvas('_bg_bd', midC);
+    this.bgBuildings = this.add
+      .tileSprite(0, H, W, midC.height, '_bg_bd')
+      .setOrigin(0, 1)
+      .setDepth(DEPTH.BG_MID);
+
+    // Near layer — floating crystal shards
+    const nearC = this.buildS3NearLayer();
+    this.textures.addCanvas('_bg_nr', nearC);
+    this.bgNear = this.add
+      .tileSprite(0, H, W, nearC.height, '_bg_nr')
+      .setOrigin(0, 1)
+      .setDepth(DEPTH.BG_NEAR - 1);
+  }
+
+  /** Far layer: crystal spires rising from a ridgeline, frozen rose silhouettes. */
+  private buildS3FarLayer(): HTMLCanvasElement {
+    const TW = 2048, TH = 440;
+    const cv = document.createElement('canvas');
+    cv.width = TW; cv.height = TH;
+    const ctx = cv.getContext('2d')!;
+    const rng = new Phaser.Math.RandomDataGenerator(['s3-far']);
+
+    // Ridgeline profile
+    const waves: [number, number, number][] = [
+      [2,  TH * 0.28, rng.frac() * Math.PI * 2],
+      [5,  TH * 0.18, rng.frac() * Math.PI * 2],
+      [9,  TH * 0.08, rng.frac() * Math.PI * 2],
+    ];
+    const profile: number[] = [];
+    for (let x = 0; x < TW; x++) {
+      let elev = 0;
+      for (const [freq, amp, ph] of waves) {
+        elev += Math.max(0, Math.sin(x / TW * Math.PI * 2 * freq + ph)) * amp;
+      }
+      profile.push(TH - Phaser.Math.Clamp(elev, 0, TH * 0.85));
+    }
+
+    // Fill with deep violet gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, TH);
+    grad.addColorStop(0,    'rgba(20,8,30,0)');
+    grad.addColorStop(0.25, 'rgba(20,8,30,0.75)');
+    grad.addColorStop(1,    '#0a0418');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.moveTo(0, TH);
+    for (let x = 0; x < TW; x++) ctx.lineTo(x, profile[x]);
+    ctx.lineTo(TW, TH); ctx.closePath(); ctx.fill();
+
+    // Crystal spires
+    let sx = rng.between(100, 300);
+    while (sx < TW - 80) {
+      const sh = rng.between(70, 200);
+      const sw = rng.between(14, 32);
+      const baseY = profile[Math.min(sx, TW - 1)];
+      ctx.fillStyle = 'rgba(60,20,80,0.5)';
+      ctx.beginPath();
+      ctx.moveTo(sx - sw / 2, baseY);
+      ctx.lineTo(sx, baseY - sh);
+      ctx.lineTo(sx + sw / 2, baseY);
+      ctx.closePath();
+      ctx.fill();
+      // Inner highlight — icy blue
+      ctx.fillStyle = 'rgba(136,204,255,0.12)';
+      ctx.beginPath();
+      ctx.moveTo(sx - sw / 4, baseY);
+      ctx.lineTo(sx, baseY - sh * 0.7);
+      ctx.lineTo(sx + sw / 6, baseY);
+      ctx.closePath();
+      ctx.fill();
+      sx += rng.between(200, 500);
+    }
+
+    // Frozen rose silhouettes
+    let rx = rng.between(150, 400);
+    while (rx < TW - 60) {
+      const rr = rng.between(15, 40);
+      const ry = profile[Math.min(rx, TW - 1)] - rng.between(10, 40);
+      // Rose circle
+      ctx.strokeStyle = 'rgba(255,102,204,0.20)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(rx, ry, rr, 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner petals
+      const petals = rng.between(5, 8);
+      for (let p = 0; p < petals; p++) {
+        const a = (p / petals) * Math.PI * 2;
+        ctx.strokeStyle = 'rgba(255,102,204,0.12)';
+        ctx.beginPath();
+        ctx.ellipse(rx + Math.cos(a) * rr * 0.4, ry + Math.sin(a) * rr * 0.4, rr * 0.35, rr * 0.2, a, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      rx += rng.between(300, 600);
+    }
+
+    return cv;
+  }
+
+  /** Mid layer: frozen garden ruins with thorny vine structures. */
+  private buildS3MidLayer(): HTMLCanvasElement {
+    const TW = 2048, TH = 280;
+    const cv = document.createElement('canvas');
+    cv.width = TW; cv.height = TH;
+    const ctx = cv.getContext('2d')!;
+    const rng = new Phaser.Math.RandomDataGenerator(['s3-mid']);
+
+    const profile = new Float32Array(TW).fill(TH);
+
+    // Garden structures — arched trellises, pillars
+    let bx = 0;
+    while (bx < TW) {
+      const bw = rng.between(50, 120);
+      const bh = rng.between(50, 180);
+      const by = TH - bh;
+      for (let i = bx; i < Math.min(bx + bw, TW); i++) profile[i] = by;
+
+      // Arch on top
+      if (rng.frac() < 0.4 && bw > 70) {
+        ctx.strokeStyle = 'rgba(80,30,100,0.4)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(bx + bw / 2, by, bw / 2, Math.PI, 0);
+        ctx.stroke();
+      }
+
+      // Thorny vine growing up
+      if (rng.frac() < 0.5) {
+        const vx = bx + rng.between(5, bw - 5);
+        const vh = rng.between(30, 80);
+        ctx.strokeStyle = 'rgba(60,20,40,0.45)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(vx, by);
+        ctx.bezierCurveTo(vx - 10, by - vh * 0.5, vx + 15, by - vh * 0.7, vx, by - vh);
+        ctx.stroke();
+        // Thorns
+        for (let t = 0; t < 3; t++) {
+          const ty = by - vh * (0.3 + t * 0.25);
+          ctx.strokeStyle = 'rgba(60,20,40,0.3)';
+          ctx.beginPath();
+          ctx.moveTo(vx, ty);
+          ctx.lineTo(vx + (t % 2 === 0 ? 8 : -8), ty - 6);
+          ctx.stroke();
+        }
+      }
+
+      bx += bw + rng.between(30, 100);
+    }
+
+    // Fill structures
+    const sGrad = ctx.createLinearGradient(0, 0, 0, TH);
+    sGrad.addColorStop(0, 'rgba(30,10,40,0)');
+    sGrad.addColorStop(0.4, 'rgba(30,10,40,0.7)');
+    sGrad.addColorStop(1, '#0a0418');
+    ctx.fillStyle = sGrad;
+    ctx.beginPath(); ctx.moveTo(0, TH);
+    for (let x = 0; x < TW; x++) ctx.lineTo(x, profile[x]);
+    ctx.lineTo(TW, TH); ctx.closePath(); ctx.fill();
+
+    return cv;
+  }
+
+  /** Near layer: floating crystal shards and ground crystals. */
+  private buildS3NearLayer(): HTMLCanvasElement {
+    const TW = 2048, TH = 210;
+    const cv = document.createElement('canvas');
+    cv.width = TW; cv.height = TH;
+    const ctx = cv.getContext('2d')!;
+    const rng = new Phaser.Math.RandomDataGenerator(['s3-near']);
+
+    // Ground strip
+    ctx.fillStyle = '#0a0418';
+    ctx.fillRect(0, TH - 44, TW, 44);
+
+    // Crystal shards along the ground
+    let cx = rng.between(80, 250);
+    while (cx < TW - 80) {
+      const ch = rng.between(30, 90);
+      const cw = rng.between(8, 22);
+      const by = TH - 44;
+
+      // Crystal shard (diamond shape)
+      ctx.fillStyle = 'rgba(60,20,80,0.35)';
+      ctx.beginPath();
+      ctx.moveTo(cx, by - ch);
+      ctx.lineTo(cx + cw / 2, by);
+      ctx.lineTo(cx - cw / 2, by);
+      ctx.closePath();
+      ctx.fill();
+
+      // Inner highlight
+      ctx.fillStyle = 'rgba(136,204,255,0.10)';
+      ctx.beginPath();
+      ctx.moveTo(cx, by - ch * 0.8);
+      ctx.lineTo(cx + cw / 4, by);
+      ctx.lineTo(cx - cw / 4, by);
+      ctx.closePath();
+      ctx.fill();
+
+      cx += rng.between(180, 450);
+    }
+
+    // Floating small crystal fragments
+    let fx = rng.between(100, 300);
+    while (fx < TW - 50) {
+      const fy = rng.between(30, TH - 80);
+      const fs = rng.between(4, 12);
+
+      ctx.fillStyle = 'rgba(200,150,255,0.12)';
+      ctx.save();
+      ctx.translate(fx, fy);
+      ctx.rotate(rng.frac() * Math.PI);
+      ctx.fillRect(-fs / 2, -fs / 2, fs, fs);
+      ctx.restore();
+
+      fx += rng.between(200, 500);
+    }
+
+    // Faint vine lines along the ground
+    for (let c = 0; c < 3; c++) {
+      const ly = TH - 44 + rng.between(4, 36);
+      ctx.strokeStyle = 'rgba(255,102,204,0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, ly);
+      ctx.lineTo(TW, ly);
+      ctx.stroke();
     }
 
     return cv;

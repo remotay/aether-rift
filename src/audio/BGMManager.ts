@@ -7,12 +7,13 @@
 
 import Phaser from 'phaser';
 
-export type BGMTrack = 'title' | 'stage1' | 'stage2' | 'boss' | null;
+export type BGMTrack = 'title' | 'stage1' | 'stage2' | 'stage3' | 'boss' | null;
 
 const TRACK_KEYS: Record<Exclude<BGMTrack, null>, string> = {
   title:  'bgm-title',
   stage1: 'bgm-stage1',
   stage2: 'bgm-stage2',
+  stage3: 'bgm-stage3',
   boss:   'bgm-boss',
 };
 
@@ -87,8 +88,15 @@ class BGMManager {
     this.currentTrack = track;
   }
 
-  /** Stop music with optional fade. */
+  /** Stop music with optional fade. Pass 0 for immediate stop (safe before scene transitions). */
   stop(fadeMs = FADE_MS): void {
+    if (fadeMs <= 0 && this.current) {
+      this.current.stop();
+      this.current.destroy();
+      this.current = null;
+      this.currentTrack = null;
+      return;
+    }
     this.play(null, fadeMs);
   }
 

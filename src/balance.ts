@@ -236,13 +236,73 @@ export const BALANCE = {
     },
   },
 
+  // ─── Stage 3: Shattered Eden ───────────────────────────────────────
+  stage3: {
+    enemies: {
+      gunner: { hp: 20, speed: 340, hoverDur: 4, score: 140 },
+      bloom:  { hp: 28, speed: 280, hoverDur: 5, score: 180 },
+      prism:  { hp: 22, speed: 320, hoverDur: 4.5, score: 160 },
+    },
+
+    bulletSpeed: {
+      early: 300,
+      mid:   380,
+      late:  450,
+      base:  380,
+    },
+
+    miniboss: {
+      hp:              3600,
+      attackTimer:     2.0,
+      score:           5000,
+      bulletSpeedMult: 0.92,
+      phase2at:        0.40,
+      phase2speedMult: 1.22,
+    },
+
+    boss: {
+      totalHp:              11200,
+      phase2at:             0.65,
+      phase3at:             0.28,
+      phase1speed:          350,
+      phase2speed:          410,
+      phase3speed:          470,
+      phase1telegraph:      0.85,
+      phase2telegraph:      0.50,
+      phase3telegraph:      0.35,
+      phase1pause:          1.5,
+      phase2pause:          0.9,
+      phase3pause:          0.50,
+      phase1idle:           0.55,
+      phase2idle:           0.22,
+      phase3idle:           0.10,
+      phaseTransitionPause: 3.0,
+      score:                30000,
+      homeX:                1500,
+      homeY:                540,
+    },
+
+    laser: {
+      thinWidth:        12,
+      wideWidth:        28,
+      telegraphAlpha:   0.4,
+      activeAlpha:      0.95,
+      defaultTelegraph: 1.0,
+      defaultActive:    2.0,
+      fadeoutDur:       0.3,
+      maxSimultaneous:  8,
+    },
+  },
+
 } as const;
 
 // ─── Derived helpers ──────────────────────────────────────────────────────
 
 /** Get bullet speed for a given wave number (1-indexed) */
 export function getWaveBulletSpeed(waveNum: number, stage = 1): number {
-  const speeds = stage === 2 ? BALANCE.stage2.bulletSpeed : BALANCE.bulletSpeed;
+  const speeds = stage === 3 ? BALANCE.stage3.bulletSpeed
+    : stage === 2 ? BALANCE.stage2.bulletSpeed
+    : BALANCE.bulletSpeed;
   if (waveNum <= 3)  return speeds.early;
   if (waveNum <= 8)  return speeds.mid;
   return speeds.late;
