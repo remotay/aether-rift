@@ -1856,20 +1856,6 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => flash.destroy(),
     });
 
-    // Cyan glow afterimage behind bullet
-    const trail = this.add.graphics().setDepth(DEPTH.PBULLET - 1);
-    trail.fillStyle(0x88ddff, 0.7);
-    trail.fillRoundedRect(bx - 18, by - 4, 36, 8, 4);
-    trail.fillStyle(0xffffff, 0.4);
-    trail.fillRoundedRect(bx - 8, by - 2, 18, 4, 2);
-    this.tweens.add({
-      targets: trail,
-      alpha: 0,
-      scaleX: 2.2,
-      duration: 100,
-      ease: 'Power2',
-      onComplete: () => trail.destroy(),
-    });
   }
 
   /** Small directional spark burst when player bullet hits an enemy. */
